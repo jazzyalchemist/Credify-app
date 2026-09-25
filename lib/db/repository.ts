@@ -201,6 +201,150 @@ export async function createSource(
   return row;
 }
 
+export async function updateClaim(
+  investigationId: string,
+  claimId: string,
+  input: {
+    claimType?: string;
+    firstPassStatus?: string;
+    firstPassConfidence?: number | null;
+    requiresPrimaryEvidence?: boolean;
+    primaryEvidenceRecovered?: boolean;
+    criticalFailure?: boolean;
+    unresolvedMaterialConflict?: boolean;
+    knownUnknowns?: string | null;
+    additionalEvidenceNeeded?: string | null;
+  },
+): Promise<ClaimRecord | null> {
+  const sql = db();
+  const current = await sql<ClaimRecord[]>`
+    SELECT * FROM claims
+    WHERE id = ${claimId} AND investigation_id = ${investigationId}
+    LIMIT 1
+  `;
+  if (!current[0]) return null;
+
+  const next = {
+    claimType: input.claimType ?? current[0].claim_type,
+    firstPassStatus: input.firstPassStatus ?? current[0].first_pass_status,
+    firstPassConfidence:
+      input.firstPassConfidence === undefined
+        ? current[0].first_pass_confidence
+        : input.firstPassConfidence,
+    requiresPrimaryEvidence:
+      input.requiresPrimaryEvidence ?? current[0].requires_primary_evidence,
+    primaryEvidenceRecovered:
+      input.primaryEvidenceRecovered ?? current[0].primary_evidence_recovered,
+    criticalFailure: input.criticalFailure ?? current[0].critical_failure,
+    unresolvedMaterialConflict:
+      input.unresolvedMaterialConflict ??
+      current[0].unresolved_material_conflict,
+    knownUnknowns:
+      input.knownUnknowns === undefined
+        ? current[0].known_unknowns
+        : input.knownUnknowns,
+    additionalEvidenceNeeded:
+      input.additionalEvidenceNeeded === undefined
+        ? current[0].additional_evidence_needed
+        : input.additionalEvidenceNeeded,
+  };
+
+  const [row] = await sql<ClaimRecord[]>`
+    UPDATE claims
+    SET
+      claim_type = ${next.claimType},
+      first_pass_status = ${next.firstPassStatus},
+      first_pass_confidence = ${next.firstPassConfidence},
+      requires_primary_evidence = ${next.requiresPrimaryEvidence},
+      primary_evidence_recovered = ${next.primaryEvidenceRecovered},
+      critical_failure = ${next.criticalFailure},
+      unresolved_material_conflict = ${next.unresolvedMaterialConflict},
+      known_unknowns = ${next.knownUnknowns},
+      additional_evidence_needed = ${next.additionalEvidenceNeeded},
+      updated_at = NOW()
+    WHERE id = ${claimId} AND investigation_id = ${investigationId}
+    RETURNING *
+  `;
+
+  await touchInvestigation(investigationId);
+  await appendAuditEvent(investigationId, "CLAIM_UPDATED", {
+    claimId,
+    fields: Object.keys(input),
+  });
+  return row ?? null;
+}
+
+export async function updateSource(
+  investigationId: string,
+  sourceId: string,
+  input: {
+    author?: string | null;
+    institution?: string | null;
+    sourceType?: string;
+    primaryOrSecondary?: string;
+    provenanceStatus?: string;
+    retrievalStatus?: string;
+    informationOriginId?: string | null;
+    credibilityScore?: number | null;
+    includedInSynthesis?: boolean;
+  },
+): Promise<SourceRecord | null> {
+  const sql = db();
+  const current = await sql<(SourceRecord & { included_in_synthesis: boolean })[]>`
+    SELECT * FROM sources
+    WHERE id = ${sourceId} AND investigation_id = ${investigationId}
+    LIMIT 1
+  `;
+  if (!current[0]) return null;
+
+  const next = {
+    author: input.author === undefined ? current[0].author : input.author,
+    institution:
+      input.institution === undefined ? current[0].institution : input.institution,
+    sourceType: input.sourceType ?? current[0].source_type,
+    primaryOrSecondary:
+      input.primaryOrSecondary ?? current[0].primary_or_secondary,
+    provenanceStatus:
+      input.provenanceStatus ?? current[0].provenance_status,
+    retrievalStatus:
+      input.retrievalStatus ?? current[0].retrieval_status,
+    informationOriginId:
+      input.informationOriginId === undefined
+        ? current[0].information_origin_id
+        : input.informationOriginId,
+    credibilityScore:
+      input.credibilityScore === undefined
+        ? current[0].credibility_score
+        : input.credibilityScore,
+    includedInSynthesis:
+      input.includedInSynthesis ?? current[0].included_in_synthesis,
+  };
+
+  const [row] = await sql<SourceRecord[]>`
+    UPDATE sources
+    SET
+      author = ${next.author},
+      institution = ${next.institution},
+      source_type = ${next.sourceType},
+      primary_or_secondary = ${next.primaryOrSecondary},
+      provenance_status = ${next.provenanceStatus},
+      retrieval_status = ${next.retrievalStatus},
+      information_origin_id = ${next.informationOriginId},
+      credibility_score = ${next.credibilityScore},
+      included_in_synthesis = ${next.includedInSynthesis},
+      updated_at = NOW()
+    WHERE id = ${sourceId} AND investigation_id = ${investigationId}
+    RETURNING *
+  `;
+
+  await touchInvestigation(investigationId);
+  await appendAuditEvent(investigationId, "SOURCE_UPDATED", {
+    sourceId,
+    fields: Object.keys(input),
+  });
+  return row ?? null;
+}
+
 export async function buildInvestigationState(
   investigationId: string,
 ): Promise<InvestigationState> {
