@@ -56,7 +56,9 @@ export function AIResearchPanel({
     return () => window.clearInterval(timer);
   }, [activeJobs, investigationId, router]);
 
-  async function start(kind: "decompose" | "discover") {
+  async function start(
+    kind: "decompose" | "discover" | "screen" | "audit-sources" | "synthesize",
+  ) {
     setBusy(true);
     setMessage("");
 
@@ -84,6 +86,9 @@ export function AIResearchPanel({
 
   const canDecompose = currentPhase === "INTAKE" && !frozen;
   const canDiscover = currentPhase === "IDENTIFICATION" && !frozen;
+  const canScreen = currentPhase === "SCREENING" && !frozen;
+  const canAuditSources = currentPhase === "ELIGIBILITY" && !frozen;
+  const canSynthesize = currentPhase === "SYNTHESIS" && !frozen;
 
   return (
     <section className="panel aiResearchPanel">
@@ -98,10 +103,10 @@ export function AIResearchPanel({
       </div>
 
       <p className="panelIntro">
-        AI outputs do not bypass the protocol. Claim decomposition writes only to
-        the claim ledger. Discovery uses live web search, records search activity,
-        and rejects proposed URLs that were not actually returned by the search
-        tool.
+        AI outputs do not bypass the protocol. Credify decomposes claims, discovers
+        evidence, screens sources, audits each included source against the 100-point
+        matrix, and synthesizes claim-level findings. Search-backed stages reject
+        URLs that were not actually returned by the search tool.
       </p>
 
       <div className="aiActions">
@@ -118,6 +123,29 @@ export function AIResearchPanel({
           onClick={() => start("discover")}
         >
           {busy && canDiscover ? "Starting…" : "Run evidence discovery"}
+        </button>
+        <button
+          className="ghostButton"
+          disabled={!canScreen || busy || activeJobs.length > 0}
+          onClick={() => start("screen")}
+        >
+          {busy && canScreen ? "Starting…" : "AI source screening"}
+        </button>
+        <button
+          className="ghostButton"
+          disabled={!canAuditSources || busy || activeJobs.length > 0}
+          onClick={() => start("audit-sources")}
+        >
+          {busy && canAuditSources
+            ? "Starting…"
+            : "Audit next source batch (max 8)"}
+        </button>
+        <button
+          className="ghostButton"
+          disabled={!canSynthesize || busy || activeJobs.length > 0}
+          onClick={() => start("synthesize")}
+        >
+          {busy && canSynthesize ? "Starting…" : "Run first-pass synthesis"}
         </button>
       </div>
 
