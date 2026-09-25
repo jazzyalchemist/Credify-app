@@ -14,6 +14,7 @@ export interface InvestigationRecord {
   protocol_snapshot: unknown;
   phase_checkpoints: Record<string, boolean>;
   pre_redteam_snapshot: unknown | null;
+  pre_redteam_snapshot_hash: string | null;
   pre_redteam_frozen_at: Date | null;
   finalized_at: Date | null;
   created_at: Date;
