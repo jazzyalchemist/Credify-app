@@ -12,6 +12,7 @@ import {
   createAiJob,
   failAiJob,
   getAiJob,
+  listAiJobs,
   updateAiJobStatus,
 } from "@/lib/db/ai-jobs";
 import {
@@ -100,6 +101,13 @@ export async function startDecomposition(investigationId: string) {
     throw new Error("Claim decomposition is only available during INTAKE.");
   }
 
+  const activeJobs = (await listAiJobs(investigationId)).filter((job) =>
+    ["QUEUED", "IN_PROGRESS", "PROCESSING"].includes(job.status),
+  );
+  if (activeJobs.length > 0) {
+    throw new Error("Another AI research job is already active for this investigation.");
+  }
+
   const claims = await getClaims(investigationId);
   if (claims.length > 0) {
     throw new Error(
@@ -157,6 +165,13 @@ export async function startDiscovery(investigationId: string) {
   }
   if (investigation.current_phase !== "IDENTIFICATION") {
     throw new Error("Evidence discovery is only available during IDENTIFICATION.");
+  }
+
+  const activeJobs = (await listAiJobs(investigationId)).filter((job) =>
+    ["QUEUED", "IN_PROGRESS", "PROCESSING"].includes(job.status),
+  );
+  if (activeJobs.length > 0) {
+    throw new Error("Another AI research job is already active for this investigation.");
   }
 
   const claims = await getClaims(investigationId);
