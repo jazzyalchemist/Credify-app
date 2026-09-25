@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { db } from "./client";
 import type {
   ClaimRecord,
@@ -16,6 +16,24 @@ export interface CreateInvestigationInput {
   title: string;
   inputMaterial: string;
   investigationMode: string;
+}
+
+const PHASE_ORDER: InvestigationPhase[] = [
+  "INTAKE",
+  "IDENTIFICATION",
+  "SCREENING",
+  "ELIGIBILITY",
+  "ANALYSIS",
+  "SYNTHESIS",
+  "PRE_REDTEAM",
+  "REDTEAM",
+  "RECONCILIATION",
+  "FINAL",
+];
+
+function expectedNextPhase(current: InvestigationPhase): InvestigationPhase | null {
+  const index = PHASE_ORDER.indexOf(current);
+  return PHASE_ORDER[index + 1] ?? null;
 }
 
 export async function createInvestigation(
@@ -252,19 +270,7 @@ export async function buildInvestigationState(
         WHERE investigation_id = ${investigationId}) AS reconciled
   `;
 
-  const phases: InvestigationPhase[] = [
-    "INTAKE",
-    "IDENTIFICATION",
-    "SCREENING",
-    "ELIGIBILITY",
-    "ANALYSIS",
-    "SYNTHESIS",
-    "PRE_REDTEAM",
-    "REDTEAM",
-    "RECONCILIATION",
-    "FINAL",
-  ];
-  const currentIndex = phases.indexOf(investigation.current_phase);
+  const checkpoints = investigation.phase_checkpoints ?? {};
 
   return {
     phase: investigation.current_phase,
@@ -272,19 +278,20 @@ export async function buildInvestigationState(
     sourceCount: sourceStats.source_count,
     primaryEvidenceRequired: claimStats.primary_required,
     primaryEvidenceRecovered: claimStats.primary_recovered,
-    screeningComplete: currentIndex >= phases.indexOf("ELIGIBILITY"),
+    screeningComplete: Boolean(checkpoints.SCREENING),
     retrievalOutcomesComplete:
       sourceStats.source_count > 0 && sourceStats.retrieval_incomplete === 0,
     provenanceComplete:
       sourceStats.source_count > 0 && sourceStats.provenance_incomplete === 0,
     sourceIndependenceAssessed:
       sourceStats.source_count > 0 && sourceStats.origin_unassessed === 0,
-    claimSynthesisComplete: currentIndex >= phases.indexOf("PRE_REDTEAM"),
+    claimSynthesisComplete: Boolean(checkpoints.SYNTHESIS),
     preRedTeamFrozen: Boolean(investigation.pre_redteam_frozen_at),
     redTeamCompleted:
-      redteamStats.total > 0 && redteamStats.incomplete === 0,
+      redteamStats.total >= PROTOCOL.rivalReviewerCount &&
+      redteamStats.incomplete === 0,
     reconciliationCompleted:
-      reconciliationStats.challenge_count > 0 &&
+      Boolean(checkpoints.RECONCILIATION) &&
       reconciliationStats.challenge_count === reconciliationStats.reconciled,
     unresolvedMaterialConflict: claimStats.unresolved > 0,
     criticalFailure: claimStats.critical > 0,
@@ -299,16 +306,27 @@ export async function transitionInvestigation(
   const investigation = await getInvestigation(investigationId);
   if (!investigation) throw new Error("Investigation not found.");
 
+  const expected = expectedNextPhase(investigation.current_phase);
+  if (target !== expected) {
+    return {
+      transitioned: false as const,
+      gate: {
+        allowed: false,
+        blockers: [
+          expected
+            ? "Protocol phases are sequential. Expected next phase: " + expected + "."
+            : "This investigation is already at the final phase.",
+        ],
+        warnings: [],
+      },
+    };
+  }
+
   const state = await buildInvestigationState(investigationId);
   const gate = canEnterPhase(target, state);
   if (!gate.allowed) {
     return { transitioned: false as const, gate };
   }
-
-  const freezeDate =
-    target === "REDTEAM" && !investigation.pre_redteam_frozen_at
-      ? new Date()
-      : investigation.pre_redteam_frozen_at;
 
   const finalizedAt =
     target === "FINAL" ? new Date() : investigation.finalized_at;
@@ -317,7 +335,6 @@ export async function transitionInvestigation(
     UPDATE investigations
     SET
       current_phase = ${target},
-      pre_redteam_frozen_at = ${freezeDate},
       finalized_at = ${finalizedAt},
       updated_at = NOW()
     WHERE id = ${investigationId}
@@ -331,6 +348,122 @@ export async function transitionInvestigation(
   });
 
   return { transitioned: true as const, gate, investigation: row };
+}
+
+export async function markPhaseCheckpoint(
+  investigationId: string,
+  phase: "SCREENING" | "SYNTHESIS" | "RECONCILIATION",
+) {
+  const sql = db();
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+
+  if (investigation.current_phase !== phase) {
+    throw new Error(
+      "Checkpoint can only be completed for the current investigation phase.",
+    );
+  }
+
+  if (phase === "RECONCILIATION") {
+    const state = await buildInvestigationState(investigationId);
+    const [counts] = await sql<{ challenge_count: number; reconciled: number }[]>`
+      SELECT
+        (SELECT COUNT(*)::int FROM challenges
+          WHERE investigation_id = ${investigationId}) AS challenge_count,
+        (SELECT COUNT(*)::int FROM reconciliations
+          WHERE investigation_id = ${investigationId}) AS reconciled
+    `;
+
+    if (
+      !state.redTeamCompleted ||
+      counts.challenge_count !== counts.reconciled
+    ) {
+      throw new Error(
+        "Reconciliation cannot be completed until the full RedTeam is complete and every challenge has a disposition.",
+      );
+    }
+  }
+
+  const [row] = await sql<InvestigationRecord[]>`
+    UPDATE investigations
+    SET
+      phase_checkpoints =
+        COALESCE(phase_checkpoints, '{}'::jsonb) ||
+        jsonb_build_object(${phase}, true),
+      updated_at = NOW()
+    WHERE id = ${investigationId}
+    RETURNING *
+  `;
+
+  await appendAuditEvent(investigationId, "PHASE_CHECKPOINT_COMPLETED", {
+    phase,
+  });
+
+  return row;
+}
+
+export async function freezePreRedTeamDossier(investigationId: string) {
+  const sql = db();
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+
+  if (investigation.current_phase !== "PRE_REDTEAM") {
+    throw new Error("The dossier can only be frozen during PRE_REDTEAM.");
+  }
+
+  if (investigation.pre_redteam_frozen_at) {
+    throw new Error("The pre-RedTeam dossier is already frozen.");
+  }
+
+  const [claims, sources, state, evidenceChains, searchLogs, retrievalLogs] =
+    await Promise.all([
+      getClaims(investigationId),
+      getSources(investigationId),
+      buildInvestigationState(investigationId),
+      sql`SELECT * FROM evidence_chains WHERE investigation_id = ${investigationId} ORDER BY created_at ASC`,
+      sql`SELECT * FROM search_logs WHERE investigation_id = ${investigationId} ORDER BY executed_at ASC`,
+      sql`SELECT * FROM retrieval_logs WHERE investigation_id = ${investigationId} ORDER BY attempted_at ASC`,
+    ]);
+
+  const frozenAt = new Date();
+  const snapshot = {
+    frozenAt: frozenAt.toISOString(),
+    protocol: investigation.protocol_snapshot,
+    investigation: {
+      id: investigation.id,
+      title: investigation.title,
+      inputMaterial: investigation.input_material,
+      mode: investigation.investigation_mode,
+      phase: investigation.current_phase,
+    },
+    state,
+    claims,
+    sources,
+    evidenceChains,
+    searchLogs,
+    retrievalLogs,
+  };
+
+  const canonicalJson = JSON.stringify(snapshot);
+  const snapshotHash = createHash("sha256").update(canonicalJson).digest("hex");
+
+  const [row] = await sql<InvestigationRecord[]>`
+    UPDATE investigations
+    SET
+      pre_redteam_snapshot = ${sql.json(snapshot as never)},
+      pre_redteam_snapshot_hash = ${snapshotHash},
+      pre_redteam_frozen_at = ${frozenAt},
+      updated_at = NOW()
+    WHERE id = ${investigationId}
+    RETURNING *
+  `;
+
+  await appendAuditEvent(investigationId, "PRE_REDTEAM_DOSSIER_FROZEN", {
+    sha256: snapshotHash,
+    frozenAt: frozenAt.toISOString(),
+  });
+
+  return { investigation: row, sha256: snapshotHash };
 }
 
 export async function appendAuditEvent(
