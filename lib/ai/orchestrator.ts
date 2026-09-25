@@ -36,6 +36,11 @@ import {
   processReconciliationResponse,
   processRedTeamReviewResponse,
 } from "@/lib/redteam/orchestrator";
+import {
+  processScreeningResponse,
+  processSourceAuditResponse,
+  processSynthesisResponse,
+} from "@/lib/ai/page1-orchestrator";
 
 type DecompositionOutput = {
   domain: string;
@@ -432,6 +437,12 @@ export async function refreshAiJob(
         parseJson<DiscoveryOutput>(text),
         response,
       );
+    } else if (job.job_type === "SCREENING") {
+      result = await processScreeningResponse(claimed, response);
+    } else if (job.job_type === "SOURCE_AUDIT") {
+      result = await processSourceAuditResponse(claimed, response);
+    } else if (job.job_type === "SYNTHESIS") {
+      result = await processSynthesisResponse(claimed, response);
     } else if (job.job_type === "REDTEAM_REVIEW") {
       result = await processRedTeamReviewResponse(claimed, response);
     } else if (job.job_type === "RECONCILIATION") {
