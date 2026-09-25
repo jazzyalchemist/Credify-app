@@ -49,6 +49,8 @@ export interface SourceRecord {
   primary_or_secondary: string;
   provenance_status: string;
   credibility_score: string | null;
+  screening_decision: string;
   retrieval_status: string;
+  included_in_synthesis: boolean;
   information_origin_id: string | null;
 }
