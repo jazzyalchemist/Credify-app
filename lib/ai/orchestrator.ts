@@ -41,6 +41,7 @@ import {
   processSourceAuditResponse,
   processSynthesisResponse,
 } from "@/lib/ai/page1-orchestrator";
+import { processReportResponse } from "@/lib/ai/reports";
 
 type DecompositionOutput = {
   domain: string;
@@ -443,6 +444,11 @@ export async function refreshAiJob(
       result = await processSourceAuditResponse(claimed, response);
     } else if (job.job_type === "SYNTHESIS") {
       result = await processSynthesisResponse(claimed, response);
+    } else if (
+      job.job_type === "PRE_REDTEAM_REPORT" ||
+      job.job_type === "FINAL_REPORT"
+    ) {
+      result = await processReportResponse(claimed, response);
     } else if (job.job_type === "REDTEAM_REVIEW") {
       result = await processRedTeamReviewResponse(claimed, response);
     } else if (job.job_type === "RECONCILIATION") {
