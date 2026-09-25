@@ -50,6 +50,9 @@ export interface SourceRecord {
   url_or_identifier: string | null;
   primary_or_secondary: string;
   provenance_status: string;
+  peer_review_status: string | null;
+  correction_retraction_status: string | null;
+  funding_conflicts: string | null;
   credibility_score: string | null;
   screening_decision: string;
   retrieval_status: string;
