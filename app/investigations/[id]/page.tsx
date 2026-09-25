@@ -223,7 +223,9 @@ export default async function InvestigationPage({
               <span className="statusChip">{claims.length} claims</span>
             </div>
 
-            {!frozen ? <AddClaimForm investigationId={id} /> : null}
+            {investigation.current_phase === "INTAKE" && !frozen ? (
+              <AddClaimForm investigationId={id} />
+            ) : null}
 
             <div className="ledgerList">
               {claims.length === 0 ? (
@@ -272,7 +274,7 @@ export default async function InvestigationPage({
                         ) : null}
                       </div>
                     ) : null}
-                    {!frozen ? (
+                    {investigation.current_phase === "SYNTHESIS" && !frozen ? (
                       <ClaimAuditEditor
                         investigationId={id}
                         claimId={claim.id}
@@ -299,7 +301,9 @@ export default async function InvestigationPage({
               <span className="statusChip">{sources.length} sources</span>
             </div>
 
-            {!frozen ? <AddSourceForm investigationId={id} /> : null}
+            {investigation.current_phase === "IDENTIFICATION" && !frozen ? (
+              <AddSourceForm investigationId={id} />
+            ) : null}
 
             <div className="ledgerList">
               {sources.length === 0 ? (
@@ -337,6 +341,7 @@ export default async function InvestigationPage({
                       <SourceAuditEditor
                         investigationId={id}
                         sourceId={source.id}
+                        phase={investigation.current_phase}
                         retrievalStatus={source.retrieval_status}
                         provenanceStatus={source.provenance_status}
                         primaryOrSecondary={source.primary_or_secondary}
