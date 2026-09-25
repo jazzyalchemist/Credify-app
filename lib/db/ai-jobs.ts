@@ -14,6 +14,7 @@ export interface AiJobRecord {
   job_type: string;
   external_response_id: string;
   model: string;
+  redteam_review_id: string | null;
   status: AiJobStatus;
   request_payload: unknown;
   result_payload: unknown | null;
@@ -30,6 +31,7 @@ export async function createAiJob(input: {
   model: string;
   status: AiJobStatus;
   requestPayload: unknown;
+  redteamReviewId?: string | null;
 }): Promise<AiJobRecord> {
   const sql = db();
   const id = "AIJ-" + randomUUID();
@@ -41,7 +43,8 @@ export async function createAiJob(input: {
       external_response_id,
       model,
       status,
-      request_payload
+      request_payload,
+      redteam_review_id
     )
     VALUES (
       ${id},
@@ -50,7 +53,8 @@ export async function createAiJob(input: {
       ${input.externalResponseId},
       ${input.model},
       ${input.status},
-      ${sql.json(input.requestPayload as never)}
+      ${sql.json(input.requestPayload as never)},
+      ${input.redteamReviewId ?? null}
     )
     RETURNING *
   `;
