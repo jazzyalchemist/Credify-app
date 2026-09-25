@@ -73,6 +73,9 @@ export const updateSourceSchema = z
     institution: z.string().trim().max(300).nullable().optional(),
     sourceType: z.string().trim().min(2).max(80).optional(),
     primaryOrSecondary: z.enum(["PRIMARY", "SECONDARY", "UNKNOWN"]).optional(),
+    screeningDecision: z
+      .enum(["PENDING", "INCLUDED", "EXCLUDED"])
+      .optional(),
     provenanceStatus: z
       .enum(["UNASSESSED", "VERIFIED", "PARTIAL", "FAILED"])
       .optional(),
