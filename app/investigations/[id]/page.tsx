@@ -114,7 +114,7 @@ export default async function InvestigationPage({
         <div className="workspaceMain">
           <section className="metricsGrid">
             <Metric label="Claims" value={String(state.claimCount)} note="Tracked" />
-            <Metric label="Sources" value={String(state.sourceCount)} note="Tracked" />
+            <Metric label="Sources" value={String(state.sourceCount)} note="Included evidence" />
             <Metric
               label="Primary evidence"
               value={
@@ -248,6 +248,7 @@ export default async function InvestigationPage({
                       </span>
                     </div>
                     <div className="ledgerMeta">
+                      <span>Screening: {source.screening_decision}</span>
                       <span>Retrieval: {source.retrieval_status}</span>
                       <span>Provenance: {source.provenance_status}</span>
                       <span>
@@ -264,6 +265,7 @@ export default async function InvestigationPage({
                         retrievalStatus={source.retrieval_status}
                         provenanceStatus={source.provenance_status}
                         primaryOrSecondary={source.primary_or_secondary}
+                        screeningDecision={source.screening_decision}
                         originId={source.information_origin_id}
                         credibilityScore={confidence(source.credibility_score)}
                       />
