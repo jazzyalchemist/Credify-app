@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { AIResearchPanel } from "@/components/AIResearchPanel";
@@ -120,6 +121,12 @@ export default async function InvestigationPage({
           <PhaseRail current={investigation.current_phase} completed={completed} />
 
           <div className="protocolSnapshot">
+            <Link
+              className="smallButton auditLink"
+              href={"/investigations/" + encodeURIComponent(id) + "/audit"}
+            >
+              Open audit view
+            </Link>
             <span>Protocol commit</span>
             <code>{investigation.protocol_commit.slice(0, 12)}</code>
             {investigation.pre_redteam_snapshot_hash ? (
