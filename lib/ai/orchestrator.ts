@@ -30,6 +30,11 @@ import {
 } from "./openai";
 import { CREDIFY_RESEARCH_SYSTEM, decompositionPrompt, discoveryPrompt } from "./prompts";
 import { DECOMPOSITION_SCHEMA, DISCOVERY_SCHEMA } from "./schemas";
+import {
+  markLinkedRedTeamJobFailed,
+  processReconciliationResponse,
+  processRedTeamReviewResponse,
+} from "@/lib/redteam/orchestrator";
 
 type DecompositionOutput = {
   domain: string;
@@ -390,6 +395,9 @@ export async function refreshAiJob(
       response.error?.message ||
       "Background model response ended with status: " + response.status;
     await failAiJob(job.id, message);
+    if (job.job_type === "REDTEAM_REVIEW") {
+      await markLinkedRedTeamJobFailed(job, message);
+    }
     return { ...job, status: "FAILED" as const, error: message };
   }
 
@@ -415,6 +423,10 @@ export async function refreshAiJob(
         parseJson<DiscoveryOutput>(text),
         response,
       );
+    } else if (job.job_type === "REDTEAM_REVIEW") {
+      result = await processRedTeamReviewResponse(claimed, response);
+    } else if (job.job_type === "RECONCILIATION") {
+      result = await processReconciliationResponse(claimed, response);
     } else {
       throw new Error("Unsupported AI job type: " + job.job_type);
     }
@@ -430,6 +442,9 @@ export async function refreshAiJob(
     const message =
       error instanceof Error ? error.message : "AI job processing failed.";
     await failAiJob(job.id, message);
+    if (job.job_type === "REDTEAM_REVIEW") {
+      await markLinkedRedTeamJobFailed(job, message);
+    }
     await appendAuditEvent(investigationId, "AI_JOB_FAILED", {
       jobId: job.id,
       jobType: job.job_type,
