@@ -1,0 +1,9 @@
+BEGIN;
+
+ALTER TABLE claims
+  ADD COLUMN IF NOT EXISTS final_wording TEXT;
+
+ALTER TABLE claims
+  ADD COLUMN IF NOT EXISTS final_rationale TEXT;
+
+COMMIT;
