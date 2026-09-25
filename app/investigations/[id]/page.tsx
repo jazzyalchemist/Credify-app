@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { AIResearchPanel } from "@/components/AIResearchPanel";
 import { AddClaimForm } from "@/components/AddClaimForm";
 import { AddSourceForm } from "@/components/AddSourceForm";
 import { ClaimAuditEditor } from "@/components/ClaimAuditEditor";
@@ -8,6 +9,7 @@ import { PhaseRail } from "@/components/PhaseRail";
 import { SourceAuditEditor } from "@/components/SourceAuditEditor";
 import { WorkspaceControls } from "@/components/WorkspaceControls";
 import { databaseConfigured } from "@/lib/db/client";
+import { listAiJobs } from "@/lib/db/ai-jobs";
 import {
   buildInvestigationState,
   getClaims,
@@ -60,10 +62,11 @@ export default async function InvestigationPage({
   const investigation = await getInvestigation(id);
   if (!investigation) notFound();
 
-  const [claims, sources, state] = await Promise.all([
+  const [claims, sources, state, aiJobs] = await Promise.all([
     getClaims(id),
     getSources(id),
     buildInvestigationState(id),
+    listAiJobs(id),
   ]);
 
   const currentIndex = PHASES.indexOf(investigation.current_phase);
@@ -112,6 +115,13 @@ export default async function InvestigationPage({
         </aside>
 
         <div className="workspaceMain">
+          <AIResearchPanel
+            investigationId={id}
+            currentPhase={investigation.current_phase}
+            jobs={aiJobs}
+            frozen={frozen}
+          />
+
           <section className="metricsGrid">
             <Metric label="Claims" value={String(state.claimCount)} note="Tracked" />
             <Metric label="Sources" value={String(state.sourceCount)} note="Included evidence" />
