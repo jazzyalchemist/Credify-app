@@ -121,12 +121,20 @@ export default async function InvestigationPage({
           <PhaseRail current={investigation.current_phase} completed={completed} />
 
           <div className="protocolSnapshot">
-            <Link
-              className="smallButton auditLink"
-              href={"/investigations/" + encodeURIComponent(id) + "/audit"}
-            >
-              Open audit view
-            </Link>
+            <div className="workspaceLinks">
+              <Link
+                className="smallButton auditLink"
+                href={"/investigations/" + encodeURIComponent(id) + "/reports"}
+              >
+                Reports
+              </Link>
+              <Link
+                className="smallButton auditLink"
+                href={"/investigations/" + encodeURIComponent(id) + "/audit"}
+              >
+                Audit view
+              </Link>
+            </div>
             <span>Protocol commit</span>
             <code>{investigation.protocol_commit.slice(0, 12)}</code>
             {investigation.pre_redteam_snapshot_hash ? (
