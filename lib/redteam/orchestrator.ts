@@ -115,6 +115,37 @@ function normalizeUrl(value: string) {
   }
 }
 
+function frozenSourceRefs(snapshot: unknown): Set<string> {
+  const refs = new Set<string>();
+  if (!snapshot || typeof snapshot !== "object") return refs;
+
+  const sources = Array.isArray((snapshot as { sources?: unknown[] }).sources)
+    ? (snapshot as { sources: unknown[] }).sources
+    : [];
+
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    const id = (source as { id?: unknown }).id;
+    const url = (source as { url_or_identifier?: unknown }).url_or_identifier;
+
+    if (typeof id === "string") refs.add(id);
+    if (typeof url === "string" && /^https?:\/\//i.test(url)) {
+      refs.add(normalizeUrl(url));
+    }
+  }
+
+  return refs;
+}
+
+function challengeAcceptedUrls(evidence: unknown): string[] {
+  if (!evidence || typeof evidence !== "object") return [];
+  const urls = (evidence as { acceptedEvidenceUrls?: unknown })
+    .acceptedEvidenceUrls;
+  return Array.isArray(urls)
+    ? urls.filter((value): value is string => typeof value === "string")
+    : [];
+}
+
 function frozenSourceUrls(snapshot: unknown): Set<string> {
   const urls = new Set<string>();
   if (!snapshot || typeof snapshot !== "object") return urls;
@@ -344,15 +375,26 @@ export async function processRedTeamReviewResponse(
     });
   }
 
+  const unknownClaimIds = [
+    ...new Set(
+      output.challenges
+        .map((challenge) => challenge.claim_id)
+        .filter((claimId) => !claimIds.has(claimId)),
+    ),
+  ];
+
+  if (unknownClaimIds.length > 0) {
+    throw new Error(
+      "Rival reviewer returned challenges for unknown claim IDs: " +
+        unknownClaimIds.join(", ") +
+        ".",
+    );
+  }
+
   const createdChallengeIds: string[] = [];
-  const rejectedUnknownClaimIds: string[] = [];
   const rejectedEvidenceUrls: string[] = [];
 
   for (const challenge of output.challenges) {
-    if (!claimIds.has(challenge.claim_id)) {
-      rejectedUnknownClaimIds.push(challenge.claim_id);
-      continue;
-    }
 
     const acceptedUrls: string[] = [];
     const rejectedUrls: string[] = [];
@@ -390,7 +432,6 @@ export async function processRedTeamReviewResponse(
     summary: output.summary,
     globalFindings: output.global_findings,
     createdChallengeIds,
-    rejectedUnknownClaimIds,
     rejectedEvidenceUrls,
     webQueries: queries,
     toolSources,
@@ -406,7 +447,6 @@ export async function processRedTeamReviewResponse(
     reviewId: job.redteam_review_id,
     jobId: job.id,
     challengeCount: createdChallengeIds.length,
-    rejectedUnknownClaimIds,
     rejectedEvidenceUrls,
     toolSourceCount: toolSources.length,
   });
@@ -539,6 +579,40 @@ export async function processReconciliationResponse(
 
   const toolSources = extractWebSources(response);
   const queries = extractWebQueries(response);
+
+  const trustedEvidenceRefs = frozenSourceRefs(
+    investigation.pre_redteam_snapshot,
+  );
+  for (const challenge of challenges) {
+    trustedEvidenceRefs.add(challenge.id);
+    for (const url of challengeAcceptedUrls(challenge.evidence)) {
+      trustedEvidenceRefs.add(normalizeUrl(url));
+    }
+  }
+  for (const source of toolSources) {
+    trustedEvidenceRefs.add(normalizeUrl(source.url));
+  }
+
+  const invalidEvidenceRefs: string[] = [];
+  for (const adjudication of output.adjudications) {
+    for (const ref of [
+      ...adjudication.evidence_for_refs,
+      ...adjudication.evidence_against_refs,
+    ]) {
+      const normalized = /^https?:\/\//i.test(ref) ? normalizeUrl(ref) : ref;
+      if (!trustedEvidenceRefs.has(normalized)) {
+        invalidEvidenceRefs.push(ref);
+      }
+    }
+  }
+
+  if (invalidEvidenceRefs.length > 0) {
+    throw new Error(
+      "Reconciliation referenced evidence that is not in the frozen dossier, " +
+        "validated challenge evidence, or its own web-search results: " +
+        [...new Set(invalidEvidenceRefs)].join(", "),
+    );
+  }
 
   for (const query of queries) {
     await createSearchLog({
