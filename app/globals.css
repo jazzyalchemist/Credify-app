@@ -1859,3 +1859,104 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+
+.workspaceLinks,
+.reportNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.workspaceLinks {
+  margin-bottom: 8px;
+}
+
+.reportNav {
+  margin-bottom: 18px;
+}
+
+.reportStack {
+  display: grid;
+  gap: 22px;
+}
+
+.reportArtifact {
+  overflow: hidden;
+  border: 1px solid rgba(31, 45, 57, 0.08);
+  border-radius: 23px;
+  background: rgba(255,255,255,0.94);
+  box-shadow: var(--shadow);
+}
+
+.reportArtifactHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 25px;
+  border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 90% -40%, rgba(227,239,240,0.82), transparent 55%),
+    #fff;
+}
+
+.reportArtifactHeader h2 {
+  margin: 0 0 7px;
+  font-size: 26px;
+  letter-spacing: -0.04em;
+}
+
+.reportArtifactHeader p:not(.kicker) {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-size: 9px;
+}
+
+.reportSections {
+  padding: 8px 25px 25px;
+}
+
+.reportSection {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  padding: 19px 0;
+  border-bottom: 1px solid #edf0f2;
+}
+
+.reportSection:last-child {
+  border-bottom: 0;
+}
+
+.reportSection > span {
+  color: #80909b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 760;
+}
+
+.reportSection h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+
+.reportSection p {
+  margin: 0;
+  color: #52606d;
+  white-space: pre-wrap;
+  line-height: 1.65;
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .reportArtifactHeader {
+    flex-direction: column;
+  }
+
+  .reportSections {
+    padding: 4px 18px 20px;
+  }
+}
