@@ -103,3 +103,14 @@ export async function listClaimSourceEdges(investigationId: string) {
     ORDER BY created_at ASC
   `;
 }
+
+
+export async function listEvidenceChains(investigationId: string) {
+  const sql = db();
+  return sql`
+    SELECT *
+    FROM evidence_chains
+    WHERE investigation_id = ${investigationId}
+    ORDER BY created_at ASC
+  `;
+}
