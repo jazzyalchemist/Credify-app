@@ -7,9 +7,15 @@ import type {
 } from "@/lib/db/types";
 import { CREDIFY_RESEARCH_SYSTEM } from "@/lib/ai/prompts";
 
-export function redTeamSystem(roleName: string, roleMission: string) {
+export function redTeamSystem(
+  roleName: string,
+  roleMission: string,
+  canonicalProtocol: string,
+) {
   return `
 ${CREDIFY_RESEARCH_SYSTEM}
+
+${canonicalProtocol}
 
 You are now an INDEPENDENT RIVAL REDTEAM REVIEWER.
 
@@ -74,9 +80,11 @@ function safeChallenge(challenge: ChallengeRecord) {
   };
 }
 
-export function reconciliationSystem() {
+export function reconciliationSystem(canonicalProtocol: string) {
   return `
 ${CREDIFY_RESEARCH_SYSTEM}
+
+${canonicalProtocol}
 
 You are the BLIND EVIDENCE RECONCILIATION JUDGE.
 
