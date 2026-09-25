@@ -419,12 +419,12 @@ export async function buildInvestigationState(
   `;
 
   const [redteamStats] = await sql<{
-    total: number;
-    incomplete: number;
+    completed_roles: number;
   }[]>`
     SELECT
-      COUNT(*)::int AS total,
-      COUNT(*) FILTER (WHERE status <> 'COMPLETED')::int AS incomplete
+      COUNT(DISTINCT reviewer_role) FILTER (
+        WHERE status = 'COMPLETED'
+      )::int AS completed_roles
     FROM redteam_reviews
     WHERE investigation_id = ${investigationId}
   `;
@@ -458,8 +458,7 @@ export async function buildInvestigationState(
     claimSynthesisComplete: Boolean(checkpoints.SYNTHESIS),
     preRedTeamFrozen: Boolean(investigation.pre_redteam_frozen_at),
     redTeamCompleted:
-      redteamStats.total >= PROTOCOL.rivalReviewerCount &&
-      redteamStats.incomplete === 0,
+      redteamStats.completed_roles >= PROTOCOL.rivalReviewerCount,
     reconciliationCompleted:
       Boolean(checkpoints.RECONCILIATION) &&
       reconciliationStats.challenge_count === reconciliationStats.reconciled,
