@@ -11,6 +11,7 @@ import type {
   InvestigationState,
 } from "@/lib/protocol/types";
 import { canEnterPhase } from "@/lib/protocol/gates";
+import { getLatestReport } from "./reports";
 
 export interface CreateInvestigationInput {
   title: string;
@@ -653,6 +654,16 @@ export async function freezePreRedTeamDossier(investigationId: string) {
     throw new Error("The pre-RedTeam dossier is already frozen.");
   }
 
+  const preRedTeamReport = await getLatestReport(
+    investigationId,
+    "PRE_REDTEAM",
+  );
+  if (!preRedTeamReport) {
+    throw new Error(
+      "Generate the structured pre-RedTeam report before freezing the dossier.",
+    );
+  }
+
   const [
     claims,
     sources,
@@ -689,6 +700,13 @@ export async function freezePreRedTeamDossier(investigationId: string) {
     evidenceChains,
     searchLogs,
     retrievalLogs,
+    preRedTeamReport: {
+      id: preRedTeamReport.id,
+      sha256: preRedTeamReport.sha256,
+      structuredContent: preRedTeamReport.structured_content,
+      markdownContent: preRedTeamReport.markdown_content,
+      createdAt: preRedTeamReport.created_at,
+    },
   };
 
   const canonicalJson = JSON.stringify(snapshot);
