@@ -20,6 +20,7 @@ export function AppShell({
           <span>Credify</span>
         </Link>
         <nav className="topnav" aria-label="Primary">
+          <Link href="/investigations">Investigations</Link>
           <Link href="/investigations/new">New investigation</Link>
           <Link href="/investigations/demo">Demo workspace</Link>
           <a
