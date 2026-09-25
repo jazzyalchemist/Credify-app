@@ -30,6 +30,8 @@ export interface ClaimRecord {
   first_pass_confidence: string | null;
   final_status: string;
   final_confidence: string | null;
+  final_wording: string | null;
+  final_rationale: string | null;
   requires_primary_evidence: boolean;
   primary_evidence_recovered: boolean;
   critical_failure: boolean;
