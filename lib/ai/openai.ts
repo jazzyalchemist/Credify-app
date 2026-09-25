@@ -71,7 +71,9 @@ export async function retrieveResponse(
   responseId: string,
 ): Promise<OpenAIResponse> {
   return request<OpenAIResponse>(
-    "/responses/" + encodeURIComponent(responseId),
+    "/responses/" +
+      encodeURIComponent(responseId) +
+      "?include=web_search_call.action.sources",
     { method: "GET" },
   );
 }
