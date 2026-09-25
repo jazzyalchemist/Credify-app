@@ -92,3 +92,14 @@ export async function createSearchLog(input: {
     )
   `;
 }
+
+
+export async function listClaimSourceEdges(investigationId: string) {
+  const sql = db();
+  return sql`
+    SELECT *
+    FROM claim_source_edges
+    WHERE investigation_id = ${investigationId}
+    ORDER BY created_at ASC
+  `;
+}
