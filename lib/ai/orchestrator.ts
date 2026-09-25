@@ -30,6 +30,7 @@ import {
 } from "./openai";
 import { CREDIFY_RESEARCH_SYSTEM, decompositionPrompt, discoveryPrompt } from "./prompts";
 import { DECOMPOSITION_SCHEMA, DISCOVERY_SCHEMA } from "./schemas";
+import { loadCanonicalInitialProtocol } from "@/lib/protocol/canonical";
 import {
   markLinkedRedTeamJobFailed,
   processReconciliationResponse,
@@ -121,11 +122,15 @@ export async function startDecomposition(investigationId: string) {
   }
 
   const model = researchModel();
+  const canonicalProtocol = await loadCanonicalInitialProtocol();
   const requestPayload = {
     model,
     reasoning: { effort: "medium" },
     input: [
-      { role: "system", content: CREDIFY_RESEARCH_SYSTEM },
+      {
+        role: "system",
+        content: CREDIFY_RESEARCH_SYSTEM + "\n\n" + canonicalProtocol,
+      },
       { role: "user", content: decompositionPrompt(investigation) },
     ],
     text: {
@@ -185,6 +190,7 @@ export async function startDiscovery(investigationId: string) {
   }
 
   const model = researchModel();
+  const canonicalProtocol = await loadCanonicalInitialProtocol();
   const requestPayload = {
     model,
     reasoning: { effort: "high" },
@@ -198,7 +204,10 @@ export async function startDiscovery(investigationId: string) {
     tool_choice: "required",
     include: ["web_search_call.action.sources"],
     input: [
-      { role: "system", content: CREDIFY_RESEARCH_SYSTEM },
+      {
+        role: "system",
+        content: CREDIFY_RESEARCH_SYSTEM + "\n\n" + canonicalProtocol,
+      },
       { role: "user", content: discoveryPrompt(investigation, claims) },
     ],
     text: {
