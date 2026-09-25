@@ -57,16 +57,29 @@ export function AIResearchPanel({
   }, [activeJobs, investigationId, router]);
 
   async function start(
-    kind: "decompose" | "discover" | "screen" | "audit-sources" | "synthesize",
+    kind:
+      | "decompose"
+      | "discover"
+      | "screen"
+      | "audit-sources"
+      | "synthesize"
+      | "pre-report"
+      | "final-report",
   ) {
     setBusy(true);
     setMessage("");
 
+    const suffix =
+      kind === "pre-report"
+        ? "/reports/pre-redteam"
+        : kind === "final-report"
+          ? "/reports/final"
+          : "/ai/" + kind;
+
     const response = await fetch(
       "/api/investigations/" +
         encodeURIComponent(investigationId) +
-        "/ai/" +
-        kind,
+        suffix,
       { method: "POST" },
     );
 
@@ -89,6 +102,8 @@ export function AIResearchPanel({
   const canScreen = currentPhase === "SCREENING" && !frozen;
   const canAuditSources = currentPhase === "ELIGIBILITY" && !frozen;
   const canSynthesize = currentPhase === "SYNTHESIS" && !frozen;
+  const canPreReport = currentPhase === "PRE_REDTEAM" && !frozen;
+  const canFinalReport = currentPhase === "FINAL";
 
   return (
     <section className="panel aiResearchPanel">
@@ -146,6 +161,20 @@ export function AIResearchPanel({
           onClick={() => start("synthesize")}
         >
           {busy && canSynthesize ? "Starting…" : "Run first-pass synthesis"}
+        </button>
+        <button
+          className="ghostButton"
+          disabled={!canPreReport || busy || activeJobs.length > 0}
+          onClick={() => start("pre-report")}
+        >
+          {busy && canPreReport ? "Starting…" : "Generate pre-RedTeam report"}
+        </button>
+        <button
+          className="ghostButton"
+          disabled={!canFinalReport || busy || activeJobs.length > 0}
+          onClick={() => start("final-report")}
+        >
+          {busy && canFinalReport ? "Starting…" : "Generate final report"}
         </button>
       </div>
 
