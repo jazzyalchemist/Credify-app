@@ -6,10 +6,16 @@ import { AddSourceForm } from "@/components/AddSourceForm";
 import { ClaimAuditEditor } from "@/components/ClaimAuditEditor";
 import { Metric } from "@/components/Metric";
 import { PhaseRail } from "@/components/PhaseRail";
+import { RedTeamPanel } from "@/components/RedTeamPanel";
 import { SourceAuditEditor } from "@/components/SourceAuditEditor";
 import { WorkspaceControls } from "@/components/WorkspaceControls";
 import { databaseConfigured } from "@/lib/db/client";
 import { listAiJobs } from "@/lib/db/ai-jobs";
+import {
+  listChallenges,
+  listReconciliations,
+  listRedTeamReviews,
+} from "@/lib/db/redteam";
 import {
   buildInvestigationState,
   getClaims,
@@ -62,11 +68,22 @@ export default async function InvestigationPage({
   const investigation = await getInvestigation(id);
   if (!investigation) notFound();
 
-  const [claims, sources, state, aiJobs] = await Promise.all([
+  const [
+    claims,
+    sources,
+    state,
+    aiJobs,
+    redTeamReviews,
+    challenges,
+    reconciliations,
+  ] = await Promise.all([
     getClaims(id),
     getSources(id),
     buildInvestigationState(id),
     listAiJobs(id),
+    listRedTeamReviews(id),
+    listChallenges(id),
+    listReconciliations(id),
   ]);
 
   const currentIndex = PHASES.indexOf(investigation.current_phase);
@@ -121,6 +138,19 @@ export default async function InvestigationPage({
             jobs={aiJobs}
             frozen={frozen}
           />
+
+          {(investigation.current_phase === "REDTEAM" ||
+            investigation.current_phase === "RECONCILIATION" ||
+            investigation.current_phase === "FINAL" ||
+            redTeamReviews.length > 0) ? (
+            <RedTeamPanel
+              investigationId={id}
+              currentPhase={investigation.current_phase}
+              reviews={redTeamReviews}
+              challengeCount={challenges.length}
+              reconciliationCount={reconciliations.length}
+            />
+          ) : null}
 
           <section className="metricsGrid">
             <Metric label="Claims" value={String(state.claimCount)} note="Tracked" />
@@ -201,12 +231,32 @@ export default async function InvestigationPage({
                     <div className="ledgerMeta">
                       <span>First-pass: {claim.first_pass_status}</span>
                       <span>
-                        Confidence:{" "}
+                        First-pass confidence:{" "}
                         {confidence(claim.first_pass_confidence) === null
                           ? "—"
                           : confidence(claim.first_pass_confidence) + "%"}
                       </span>
+                      {claim.final_status !== "UNASSESSED" ? (
+                        <>
+                          <span>Final: {claim.final_status}</span>
+                          <span>
+                            Final confidence:{" "}
+                            {confidence(claim.final_confidence) === null
+                              ? "—"
+                              : confidence(claim.final_confidence) + "%"}
+                          </span>
+                        </>
+                      ) : null}
                     </div>
+                    {claim.final_status !== "UNASSESSED" ? (
+                      <div className="finalClaimAssessment">
+                        <p className="kicker">Post-RedTeam assessment</p>
+                        <h4>{claim.final_wording || claim.text}</h4>
+                        {claim.final_rationale ? (
+                          <p>{claim.final_rationale}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {!frozen ? (
                       <ClaimAuditEditor
                         investigationId={id}
