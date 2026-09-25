@@ -36,6 +36,16 @@ function expectedNextPhase(current: InvestigationPhase): InvestigationPhase | nu
   return PHASE_ORDER[index + 1] ?? null;
 }
 
+async function assertPageOneMutable(investigationId: string) {
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+  if (investigation.pre_redteam_frozen_at) {
+    throw new Error(
+      "Page-1 evidence is immutable after the pre-RedTeam dossier is frozen.",
+    );
+  }
+}
+
 export async function createInvestigation(
   input: CreateInvestigationInput,
 ): Promise<InvestigationRecord> {
@@ -122,6 +132,7 @@ export async function createClaim(
     requiresPrimaryEvidence?: boolean;
   },
 ): Promise<ClaimRecord> {
+  await assertPageOneMutable(investigationId);
   const sql = db();
   const id = "CLM-" + randomUUID();
   const [row] = await sql<ClaimRecord[]>`
@@ -170,6 +181,7 @@ export async function createSource(
     primaryOrSecondary?: string;
   },
 ): Promise<SourceRecord> {
+  await assertPageOneMutable(investigationId);
   const sql = db();
   const id = "SRC-" + randomUUID();
   const [row] = await sql<SourceRecord[]>`
@@ -216,6 +228,7 @@ export async function updateClaim(
     additionalEvidenceNeeded?: string | null;
   },
 ): Promise<ClaimRecord | null> {
+  await assertPageOneMutable(investigationId);
   const sql = db();
   const current = await sql<ClaimRecord[]>`
     SELECT * FROM claims
@@ -282,6 +295,7 @@ export async function updateSource(
     institution?: string | null;
     sourceType?: string;
     primaryOrSecondary?: string;
+    screeningDecision?: string;
     provenanceStatus?: string;
     retrievalStatus?: string;
     informationOriginId?: string | null;
@@ -289,8 +303,9 @@ export async function updateSource(
     includedInSynthesis?: boolean;
   },
 ): Promise<SourceRecord | null> {
+  await assertPageOneMutable(investigationId);
   const sql = db();
-  const current = await sql<(SourceRecord & { included_in_synthesis: boolean })[]>`
+  const current = await sql<SourceRecord[]>`
     SELECT * FROM sources
     WHERE id = ${sourceId} AND investigation_id = ${investigationId}
     LIMIT 1
@@ -304,6 +319,8 @@ export async function updateSource(
     sourceType: input.sourceType ?? current[0].source_type,
     primaryOrSecondary:
       input.primaryOrSecondary ?? current[0].primary_or_secondary,
+    screeningDecision:
+      input.screeningDecision ?? current[0].screening_decision,
     provenanceStatus:
       input.provenanceStatus ?? current[0].provenance_status,
     retrievalStatus:
@@ -327,6 +344,7 @@ export async function updateSource(
       institution = ${next.institution},
       source_type = ${next.sourceType},
       primary_or_secondary = ${next.primaryOrSecondary},
+      screening_decision = ${next.screeningDecision},
       provenance_status = ${next.provenanceStatus},
       retrieval_status = ${next.retrievalStatus},
       information_origin_id = ${next.informationOriginId},
@@ -378,15 +396,23 @@ export async function buildInvestigationState(
     origin_unassessed: number;
   }[]>`
     SELECT
-      COUNT(*)::int AS source_count,
       COUNT(*) FILTER (
-        WHERE retrieval_status IN ('DISCOVERED', 'PENDING')
+        WHERE screening_decision = 'INCLUDED' AND included_in_synthesis
+      )::int AS source_count,
+      COUNT(*) FILTER (
+        WHERE screening_decision = 'INCLUDED'
+          AND included_in_synthesis
+          AND retrieval_status IN ('DISCOVERED', 'PENDING')
       )::int AS retrieval_incomplete,
       COUNT(*) FILTER (
-        WHERE provenance_status = 'UNASSESSED'
+        WHERE screening_decision = 'INCLUDED'
+          AND included_in_synthesis
+          AND provenance_status = 'UNASSESSED'
       )::int AS provenance_incomplete,
       COUNT(*) FILTER (
-        WHERE information_origin_id IS NULL
+        WHERE screening_decision = 'INCLUDED'
+          AND included_in_synthesis
+          AND information_origin_id IS NULL
       )::int AS origin_unassessed
     FROM sources
     WHERE investigation_id = ${investigationId}
@@ -506,6 +532,57 @@ export async function markPhaseCheckpoint(
     throw new Error(
       "Checkpoint can only be completed for the current investigation phase.",
     );
+  }
+
+  if (phase === "SCREENING") {
+    const [counts] = await sql<{
+      total: number;
+      pending: number;
+      included: number;
+    }[]>`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE screening_decision = 'PENDING')::int AS pending,
+        COUNT(*) FILTER (WHERE screening_decision = 'INCLUDED')::int AS included
+      FROM sources
+      WHERE investigation_id = ${investigationId}
+    `;
+
+    if (counts.total < 1) {
+      throw new Error("Screening cannot complete without identified sources.");
+    }
+    if (counts.pending > 0) {
+      throw new Error(
+        "Every identified source needs an INCLUDED or EXCLUDED screening disposition.",
+      );
+    }
+    if (counts.included < 1) {
+      throw new Error(
+        "At least one source must survive screening before eligibility.",
+      );
+    }
+  }
+
+  if (phase === "SYNTHESIS") {
+    const [counts] = await sql<{
+      total: number;
+      incomplete: number;
+    }[]>`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (
+          WHERE first_pass_status = 'UNASSESSED'
+             OR first_pass_confidence IS NULL
+        )::int AS incomplete
+      FROM claims
+      WHERE investigation_id = ${investigationId}
+    `;
+
+    if (counts.total < 1 || counts.incomplete > 0) {
+      throw new Error(
+        "Every material claim needs a first-pass status and confidence before synthesis can be completed.",
+      );
+    }
   }
 
   if (phase === "RECONCILIATION") {
