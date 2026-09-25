@@ -1444,3 +1444,91 @@ a {
     width: 100% !important;
   }
 }
+
+
+.aiResearchPanel {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(227, 239, 240, 0.78), transparent 42%),
+    rgba(255, 255, 255, 0.92);
+}
+
+.panelIntro {
+  max-width: 840px;
+  margin: -5px 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.aiActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 18px;
+}
+
+.aiActions button:disabled,
+.protocolControl button:disabled,
+.compactForm button:disabled,
+.auditEditor button:disabled,
+.sourceAuditEditor button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+  transform: none;
+  box-shadow: none;
+}
+
+.jobList {
+  display: grid;
+  gap: 7px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.jobRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fbfcfc;
+}
+
+.jobRow strong,
+.jobRow small,
+.jobRow .claimId {
+  display: block;
+}
+
+.jobRow strong {
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+.jobRow small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.jobError {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .aiActions {
+    flex-direction: column;
+  }
+
+  .aiActions .primaryButton,
+  .aiActions .ghostButton {
+    width: 100%;
+  }
+}
