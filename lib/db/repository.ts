@@ -636,15 +636,23 @@ export async function freezePreRedTeamDossier(investigationId: string) {
     throw new Error("The pre-RedTeam dossier is already frozen.");
   }
 
-  const [claims, sources, state, evidenceChains, searchLogs, retrievalLogs] =
-    await Promise.all([
-      getClaims(investigationId),
-      getSources(investigationId),
-      buildInvestigationState(investigationId),
-      sql`SELECT * FROM evidence_chains WHERE investigation_id = ${investigationId} ORDER BY created_at ASC`,
-      sql`SELECT * FROM search_logs WHERE investigation_id = ${investigationId} ORDER BY executed_at ASC`,
-      sql`SELECT * FROM retrieval_logs WHERE investigation_id = ${investigationId} ORDER BY attempted_at ASC`,
-    ]);
+  const [
+    claims,
+    sources,
+    state,
+    claimSourceEdges,
+    evidenceChains,
+    searchLogs,
+    retrievalLogs,
+  ] = await Promise.all([
+    getClaims(investigationId),
+    getSources(investigationId),
+    buildInvestigationState(investigationId),
+    sql`SELECT * FROM claim_source_edges WHERE investigation_id = ${investigationId} ORDER BY created_at ASC`,
+    sql`SELECT * FROM evidence_chains WHERE investigation_id = ${investigationId} ORDER BY created_at ASC`,
+    sql`SELECT * FROM search_logs WHERE investigation_id = ${investigationId} ORDER BY executed_at ASC`,
+    sql`SELECT * FROM retrieval_logs WHERE investigation_id = ${investigationId} ORDER BY attempted_at ASC`,
+  ]);
 
   const frozenAt = new Date();
   const snapshot = {
@@ -660,6 +668,7 @@ export async function freezePreRedTeamDossier(investigationId: string) {
     state,
     claims,
     sources,
+    claimSourceEdges,
     evidenceChains,
     searchLogs,
     retrievalLogs,
