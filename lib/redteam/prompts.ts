@@ -144,8 +144,9 @@ Requirements:
 - Adjudicate EVERY challenge_id exactly once.
 - Return a final assessment for EVERY claim_id exactly once.
 - Use live web search when a challenge needs independent re-verification.
-- Evidence references should be concrete source IDs/URLs from the dossier,
-  challenge evidence, or URLs actually returned by your web search.
+- Evidence references must be concrete source IDs/URLs from the frozen dossier,
+  exact challenge IDs, URLs already accepted inside challenge evidence, or URLs
+  actually returned by your own web search. Do not invent free-form evidence labels.
 - Revised confidence must reflect surviving evidence and unresolved uncertainty,
   not reviewer vote totals.
 `.trim();
