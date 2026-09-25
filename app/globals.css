@@ -1653,3 +1653,209 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+
+.auditLink {
+  margin-bottom: 7px;
+}
+
+.auditToolbar {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.84);
+}
+
+.auditToolbar div {
+  min-width: 0;
+}
+
+.auditToolbar span,
+.auditToolbar code {
+  display: block;
+}
+
+.auditToolbar span {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auditToolbar code {
+  overflow-wrap: anywhere;
+  color: #4f5d69;
+  font-size: 9px;
+}
+
+.auditGrid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 18px;
+}
+
+.auditCounts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.auditCounts div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fbfcfd;
+}
+
+.auditCounts strong,
+.auditCounts span {
+  display: block;
+}
+
+.auditCounts strong {
+  font-size: 20px;
+  letter-spacing: -0.04em;
+}
+
+.auditCounts span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.auditSection {
+  margin-top: 18px;
+}
+
+.sectionTitle {
+  margin-bottom: 13px;
+}
+
+.sectionTitle h2 {
+  margin: 0;
+  font-size: 25px;
+  letter-spacing: -0.04em;
+}
+
+.auditSubhead {
+  margin: 16px 0 8px;
+  font-size: 14px;
+}
+
+.auditJson {
+  max-height: 540px;
+  overflow: auto;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #f9fafb;
+  color: #4b5866;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.matrixGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.matrixCard {
+  padding: 19px;
+  border: 1px solid rgba(31, 45, 57, 0.075);
+  border-radius: 17px;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 10px 28px rgba(24,35,48,0.05);
+}
+
+.matrixHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.matrixHeader h3 {
+  margin: 5px 0 0;
+  font-size: 15px;
+}
+
+.matrixHeader > strong {
+  white-space: nowrap;
+  font-size: 22px;
+  letter-spacing: -0.04em;
+}
+
+.matrixRows {
+  display: grid;
+  gap: 10px;
+}
+
+.matrixRow {
+  padding-top: 9px;
+  border-top: 1px solid #edf0f2;
+}
+
+.matrixRowTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 9px;
+}
+
+.matrixRowTop span {
+  color: #53606e;
+}
+
+.matrixTrack {
+  height: 4px;
+  margin: 6px 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9edf0;
+}
+
+.matrixTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.matrixRow p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.criticalFailureBox {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 11px;
+  color: #794949;
+  background: var(--rose-soft);
+  font-size: 10px;
+}
+
+.criticalFailureBox ul {
+  margin: 7px 0 0;
+  padding-left: 17px;
+}
+
+@media (max-width: 900px) {
+  .auditToolbar,
+  .auditGrid,
+  .matrixGrid {
+    grid-template-columns: 1fr;
+  }
+}
