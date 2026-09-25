@@ -298,6 +298,9 @@ export async function updateSource(
     screeningDecision?: string;
     provenanceStatus?: string;
     retrievalStatus?: string;
+    peerReviewStatus?: string | null;
+    correctionRetractionStatus?: string | null;
+    fundingConflicts?: string | null;
     informationOriginId?: string | null;
     credibilityScore?: number | null;
     includedInSynthesis?: boolean;
@@ -325,6 +328,18 @@ export async function updateSource(
       input.provenanceStatus ?? current[0].provenance_status,
     retrievalStatus:
       input.retrievalStatus ?? current[0].retrieval_status,
+    peerReviewStatus:
+      input.peerReviewStatus === undefined
+        ? current[0].peer_review_status
+        : input.peerReviewStatus,
+    correctionRetractionStatus:
+      input.correctionRetractionStatus === undefined
+        ? current[0].correction_retraction_status
+        : input.correctionRetractionStatus,
+    fundingConflicts:
+      input.fundingConflicts === undefined
+        ? current[0].funding_conflicts
+        : input.fundingConflicts,
     informationOriginId:
       input.informationOriginId === undefined
         ? current[0].information_origin_id
@@ -347,6 +362,9 @@ export async function updateSource(
       screening_decision = ${next.screeningDecision},
       provenance_status = ${next.provenanceStatus},
       retrieval_status = ${next.retrievalStatus},
+      peer_review_status = ${next.peerReviewStatus},
+      correction_retraction_status = ${next.correctionRetractionStatus},
+      funding_conflicts = ${next.fundingConflicts},
       information_origin_id = ${next.informationOriginId},
       credibility_score = ${next.credibilityScore},
       included_in_synthesis = ${next.includedInSynthesis},
