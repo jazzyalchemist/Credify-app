@@ -9,6 +9,7 @@ export function SourceAuditEditor({
   retrievalStatus,
   provenanceStatus,
   primaryOrSecondary,
+  screeningDecision,
   originId,
   credibilityScore,
 }: {
@@ -17,6 +18,7 @@ export function SourceAuditEditor({
   retrievalStatus: string;
   provenanceStatus: string;
   primaryOrSecondary: string;
+  screeningDecision: string;
   originId: string | null;
   credibilityScore: number | null;
 }) {
@@ -24,6 +26,7 @@ export function SourceAuditEditor({
   const [retrieval, setRetrieval] = useState(retrievalStatus);
   const [provenance, setProvenance] = useState(provenanceStatus);
   const [primary, setPrimary] = useState(primaryOrSecondary);
+  const [screening, setScreening] = useState(screeningDecision);
   const [origin, setOrigin] = useState(originId ?? "");
   const [score, setScore] = useState(
     credibilityScore === null ? "" : String(credibilityScore),
@@ -41,6 +44,7 @@ export function SourceAuditEditor({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          screeningDecision: screening,
           retrievalStatus: retrieval,
           provenanceStatus: provenance,
           primaryOrSecondary: primary,
@@ -55,6 +59,11 @@ export function SourceAuditEditor({
 
   return (
     <div className="sourceAuditEditor">
+      <select value={screening} onChange={(event) => setScreening(event.target.value)}>
+        <option value="PENDING">Screening pending</option>
+        <option value="INCLUDED">Include</option>
+        <option value="EXCLUDED">Exclude</option>
+      </select>
       <select value={retrieval} onChange={(event) => setRetrieval(event.target.value)}>
         <option value="DISCOVERED">Discovered</option>
         <option value="PENDING">Retrieval pending</option>
