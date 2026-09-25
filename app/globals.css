@@ -1532,3 +1532,124 @@ a {
     width: 100%;
   }
 }
+
+
+.adversarialPanel {
+  background:
+    radial-gradient(circle at 95% 0%, rgba(240, 235, 247, 0.86), transparent 42%),
+    rgba(255, 255, 255, 0.94);
+}
+
+.redteamRoleGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 9px;
+}
+
+.redteamRoleCard {
+  min-height: 188px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(252, 252, 253, 0.92);
+}
+
+.redteamRoleTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 17px;
+}
+
+.redteamRoleTop > span:first-child {
+  color: #7a6a8e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 760;
+}
+
+.redteamRoleCard h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+}
+
+.redteamRoleCard p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.redteamRoleCard small {
+  display: block;
+  margin-top: 13px;
+  color: #8a8193;
+  font-size: 9px;
+}
+
+.redteamSummaryBar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  overflow: hidden;
+  margin: 14px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--line);
+}
+
+.redteamSummaryBar div {
+  padding: 12px;
+  background: #fff;
+}
+
+.redteamSummaryBar span,
+.redteamSummaryBar strong {
+  display: block;
+}
+
+.redteamSummaryBar span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.redteamSummaryBar strong {
+  margin-top: 5px;
+  font-size: 13px;
+}
+
+.finalClaimAssessment {
+  margin-top: 13px;
+  padding: 13px;
+  border: 1px solid rgba(40, 95, 104, 0.12);
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+
+.finalClaimAssessment h4 {
+  margin: 0 0 7px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.finalClaimAssessment p:not(.kicker) {
+  margin: 0;
+  color: #52696d;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1120px) {
+  .redteamRoleGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .redteamRoleGrid,
+  .redteamSummaryBar {
+    grid-template-columns: 1fr;
+  }
+}
