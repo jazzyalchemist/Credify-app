@@ -37,6 +37,24 @@ function expectedNextPhase(current: InvestigationPhase): InvestigationPhase | nu
   return PHASE_ORDER[index + 1] ?? null;
 }
 
+async function requirePhase(
+  investigationId: string,
+  allowed: InvestigationPhase[],
+) {
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+  if (!allowed.includes(investigation.current_phase)) {
+    throw new Error(
+      "This mutation is not allowed during " +
+        investigation.current_phase +
+        ". Allowed phase(s): " +
+        allowed.join(", ") +
+        ".",
+    );
+  }
+  return investigation;
+}
+
 async function assertPageOneMutable(investigationId: string) {
   const investigation = await getInvestigation(investigationId);
   if (!investigation) throw new Error("Investigation not found.");
@@ -134,6 +152,7 @@ export async function createClaim(
   },
 ): Promise<ClaimRecord> {
   await assertPageOneMutable(investigationId);
+  await requirePhase(investigationId, ["INTAKE"]);
   const sql = db();
   const id = "CLM-" + randomUUID();
   const [row] = await sql<ClaimRecord[]>`
@@ -183,6 +202,7 @@ export async function createSource(
   },
 ): Promise<SourceRecord> {
   await assertPageOneMutable(investigationId);
+  await requirePhase(investigationId, ["IDENTIFICATION"]);
   const sql = db();
   const id = "SRC-" + randomUUID();
   const [row] = await sql<SourceRecord[]>`
@@ -230,6 +250,33 @@ export async function updateClaim(
   },
 ): Promise<ClaimRecord | null> {
   await assertPageOneMutable(investigationId);
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+
+  const fields = Object.keys(input);
+  const intakeFields = new Set(["claimType", "requiresPrimaryEvidence"]);
+  const synthesisFields = new Set([
+    "firstPassStatus",
+    "firstPassConfidence",
+    "primaryEvidenceRecovered",
+    "criticalFailure",
+    "unresolvedMaterialConflict",
+    "knownUnknowns",
+    "additionalEvidenceNeeded",
+  ]);
+  const allowed =
+    investigation.current_phase === "INTAKE"
+      ? intakeFields
+      : investigation.current_phase === "SYNTHESIS"
+        ? synthesisFields
+        : null;
+
+  if (!allowed || fields.some((field) => !allowed.has(field))) {
+    throw new Error(
+      "Claim fields cannot be changed in this phase. Credify preserves the predeclared claim set and separates first-pass synthesis from intake.",
+    );
+  }
+
   const sql = db();
   const current = await sql<ClaimRecord[]>`
     SELECT * FROM claims
@@ -308,6 +355,41 @@ export async function updateSource(
   },
 ): Promise<SourceRecord | null> {
   await assertPageOneMutable(investigationId);
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+
+  const fields = Object.keys(input);
+  const screeningFields = new Set([
+    "screeningDecision",
+    "includedInSynthesis",
+  ]);
+  const eligibilityFields = new Set([
+    "author",
+    "institution",
+    "sourceType",
+    "primaryOrSecondary",
+    "provenanceStatus",
+    "retrievalStatus",
+    "peerReviewStatus",
+    "correctionRetractionStatus",
+    "fundingConflicts",
+    "informationOriginId",
+    "credibilityScore",
+  ]);
+  const allowed =
+    investigation.current_phase === "SCREENING"
+      ? screeningFields
+      : investigation.current_phase === "ELIGIBILITY" ||
+          investigation.current_phase === "ANALYSIS"
+        ? eligibilityFields
+        : null;
+
+  if (!allowed || fields.some((field) => !allowed.has(field))) {
+    throw new Error(
+      "Source fields cannot be changed in this phase. Screening and eligibility/provenance edits are intentionally separated.",
+    );
+  }
+
   const sql = db();
   const current = await sql<SourceRecord[]>`
     SELECT * FROM sources
@@ -504,6 +586,26 @@ export async function transitionInvestigation(
           expected
             ? "Protocol phases are sequential. Expected next phase: " + expected + "."
             : "This investigation is already at the final phase.",
+        ],
+        warnings: [],
+      },
+    };
+  }
+
+  const [activeAi] = await sql<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count
+    FROM ai_jobs
+    WHERE investigation_id = ${investigationId}
+      AND status IN ('QUEUED', 'IN_PROGRESS', 'PROCESSING')
+  `;
+
+  if (activeAi.count > 0) {
+    return {
+      transitioned: false as const,
+      gate: {
+        allowed: false,
+        blockers: [
+          "Protocol phase cannot advance while background AI research is still modifying or validating this investigation.",
         ],
         warnings: [],
       },
