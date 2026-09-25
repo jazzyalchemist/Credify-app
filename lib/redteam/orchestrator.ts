@@ -38,6 +38,10 @@ import {
   REDTEAM_REVIEW_SCHEMA,
 } from "./schemas";
 import { REDTEAM_ROLES } from "./roles";
+import {
+  loadCanonicalReconciliationProtocol,
+  loadCanonicalRedTeamProtocol,
+} from "@/lib/protocol/canonical";
 
 type RedTeamOutput = {
   summary: string;
@@ -192,6 +196,7 @@ export async function startRedTeam(investigationId: string) {
   );
 
   const model = researchModel();
+  const canonicalProtocol = await loadCanonicalRedTeamProtocol();
   const started: Array<{ role: string; reviewId: string; jobId: string }> = [];
   const skipped: Array<{ role: string; reason: string }> = [];
   const errors: Array<{ role: string; error: string }> = [];
@@ -240,7 +245,7 @@ export async function startRedTeam(investigationId: string) {
         input: [
           {
             role: "system",
-            content: redTeamSystem(role.name, role.mission),
+            content: redTeamSystem(role.name, role.mission, canonicalProtocol),
           },
           {
             role: "user",
@@ -448,6 +453,7 @@ export async function startReconciliation(investigationId: string) {
   const claims = await getClaims(investigationId);
   const challenges = await listChallenges(investigationId);
   const model = researchModel();
+  const canonicalProtocol = await loadCanonicalReconciliationProtocol();
 
   const requestPayload = {
     model,
@@ -462,7 +468,7 @@ export async function startReconciliation(investigationId: string) {
     tool_choice: "auto",
     include: ["web_search_call.action.sources"],
     input: [
-      { role: "system", content: reconciliationSystem() },
+      { role: "system", content: reconciliationSystem(canonicalProtocol) },
       {
         role: "user",
         content: reconciliationPrompt(investigation, claims, challenges),
