@@ -80,3 +80,19 @@ export async function listReports(
     ORDER BY created_at ASC
   `;
 }
+
+
+export async function getReport(
+  investigationId: string,
+  reportId: string,
+): Promise<ReportRecord | null> {
+  const sql = db();
+  const rows = await sql<ReportRecord[]>`
+    SELECT *
+    FROM reports
+    WHERE id = ${reportId}
+      AND investigation_id = ${investigationId}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
