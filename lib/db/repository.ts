@@ -738,3 +738,38 @@ async function touchInvestigation(id: string) {
     WHERE id = ${id}
   `;
 }
+
+
+export async function listAuditEvents(
+  investigationId: string,
+  limit = 200,
+) {
+  const sql = db();
+  return sql`
+    SELECT *
+    FROM audit_events
+    WHERE investigation_id = ${investigationId}
+    ORDER BY created_at DESC
+    LIMIT ${limit}
+  `;
+}
+
+export async function listSearchLogs(investigationId: string) {
+  const sql = db();
+  return sql`
+    SELECT *
+    FROM search_logs
+    WHERE investigation_id = ${investigationId}
+    ORDER BY executed_at ASC
+  `;
+}
+
+export async function listRetrievalLogs(investigationId: string) {
+  const sql = db();
+  return sql`
+    SELECT *
+    FROM retrieval_logs
+    WHERE investigation_id = ${investigationId}
+    ORDER BY attempted_at ASC
+  `;
+}
