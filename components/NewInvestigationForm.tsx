@@ -5,13 +5,42 @@ import { useRouter } from "next/navigation";
 
 export function NewInvestigationForm() {
   const router = useRouter();
+  const [title, setTitle] = useState("");
   const [input, setInput] = useState("");
   const [mode, setMode] = useState("AUTO");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!input.trim()) return;
-    router.push("/investigations/demo");
+    if (!title.trim() || !input.trim()) return;
+
+    setBusy(true);
+    setError("");
+
+    const response = await fetch("/api/investigations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        inputMaterial: input,
+        investigationMode: mode,
+      }),
+    });
+
+    const data = (await response.json()) as {
+      investigation?: { id: string };
+      error?: string;
+    };
+
+    if (!response.ok || !data.investigation) {
+      setError(data.error ?? "Unable to create investigation.");
+      setBusy(false);
+      return;
+    }
+
+    router.push("/investigations/" + encodeURIComponent(data.investigation.id));
+    router.refresh();
   }
 
   return (
@@ -21,19 +50,36 @@ export function NewInvestigationForm() {
         <div>
           <h2>Investigate this</h2>
           <p>
-            Paste a claim, URL, research question, article excerpt, organization,
-            or other material. Files and media ingestion come next.
+            Start with the exact material or question. Credify stores the original
+            input alongside the protocol snapshot so the investigation can be
+            reproduced later.
           </p>
         </div>
       </div>
 
-      <textarea
-        aria-label="Investigation input"
-        value={input}
-        onChange={(event) => setInput(event.target.value)}
-        placeholder="Example: Evaluate the credibility of this article and determine which claims survive independent primary-source verification…"
-        rows={8}
-      />
+      <label className="fieldLabel">
+        Investigation title
+        <input
+          className="textInput"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="Example: Credibility of the reported causal claim"
+          maxLength={180}
+          required
+        />
+      </label>
+
+      <label className="fieldLabel">
+        Material / research question
+        <textarea
+          aria-label="Investigation input"
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="Paste a claim, URL, article excerpt, research question, or describe what should be investigated…"
+          rows={8}
+          required
+        />
+      </label>
 
       <div className="formRow">
         <label>
@@ -49,16 +95,18 @@ export function NewInvestigationForm() {
           </select>
         </label>
 
-        <button className="primaryButton" type="submit">
-          Start protocol
-          <span>→</span>
+        <button className="primaryButton" type="submit" disabled={busy}>
+          {busy ? "Creating…" : "Start protocol"}
+          {!busy ? <span>→</span> : null}
         </button>
       </div>
 
+      {error ? <p className="formError">{error}</p> : null}
+
       <div className="protocolNotice">
-        <strong>Protocol-enforced.</strong> Credify will not issue a final
-        investigation report until required evidence gates, RedTeam review, and
-        reconciliation are satisfied.
+        <strong>Protocol-enforced.</strong> A final report cannot be issued until
+        required evidence gates, independent RedTeam review, and reconciliation are
+        satisfied.
       </div>
     </form>
   );
