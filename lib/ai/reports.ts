@@ -384,6 +384,12 @@ export async function processReportResponse(
 
   if (!stage) throw new Error("Unsupported report job type.");
 
+  if (stage === "PRE_REDTEAM" && investigation.pre_redteam_frozen_at) {
+    throw new Error(
+      "The pre-RedTeam dossier was frozen before this report job completed; late Page-1 report output cannot alter the frozen adversarial input.",
+    );
+  }
+
   const structured = parseJson<ReportOutput>(extractOutputText(response));
   const sources = await getSources(job.investigation_id);
   validateReportCitations(structured, sources);
