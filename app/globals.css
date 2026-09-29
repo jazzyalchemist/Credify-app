@@ -2220,3 +2220,60 @@ a.citationChip:hover {
     grid-template-columns: 1fr;
   }
 }
+
+
+.intakeArtifactDrop {
+  margin-top: 2px;
+  background:
+    linear-gradient(145deg, rgba(247,250,249,0.98), rgba(242,247,247,0.9));
+}
+
+.intakeFileList {
+  display: grid;
+  gap: 8px;
+  margin-top: -3px;
+}
+
+.intakeFileRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fbfcfc;
+}
+
+.intakeFileRow > div {
+  min-width: 0;
+}
+
+.intakeFileRow strong,
+.intakeFileRow span {
+  display: block;
+}
+
+.intakeFileRow strong {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+
+.intakeFileRow span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.intakeErrorBlock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.intakeErrorBlock .formError {
+  flex: 1 1 360px;
+  margin: 0;
+}
