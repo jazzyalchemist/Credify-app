@@ -109,7 +109,12 @@ export function ArtifactPanel({
       <p className="panelIntro">
         Credify stores the original bytes separately from the narrative report.
         Each artifact receives a SHA-256 and is re-verified on download. Identical
-        bytes do not create duplicate evidence records.
+        bytes do not create duplicate evidence records. During AI analysis,
+        integrity-verified artifact bytes and supported extracted metadata may be
+        sent to the configured OpenAI API. Image metadata can include device,
+        timestamp, or location fields when present. A matching SHA-256 proves byte
+        identity inside Credify; it does not by itself prove authenticity,
+        authorship, provenance, or truth.
       </p>
 
       {canUpload ? (
