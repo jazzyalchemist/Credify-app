@@ -39,6 +39,7 @@ import {
   REDTEAM_REVIEW_SCHEMA,
 } from "./schemas";
 import { REDTEAM_ROLES } from "./roles";
+import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
 import {
   loadCanonicalReconciliationProtocol,
   loadCanonicalRedTeamProtocol,
@@ -287,11 +288,11 @@ export async function startRedTeam(investigationId: string) {
       const response = await createBackgroundResponse(requestPayload);
       await setRedTeamReviewStatus(review.id, "IN_PROGRESS");
 
-      const job = await createAiJob({
+      const job = await persistBackgroundJobOrCancel({
         investigationId,
         jobType: "REDTEAM_REVIEW",
-        externalResponseId: response.id,
-        model: response.model || model,
+        response,
+        fallbackModel: model,
         status: mapExternalStatus(response.status),
         requestPayload: {
           purpose: "redteam_review",
