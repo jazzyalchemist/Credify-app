@@ -248,7 +248,7 @@ export function NewInvestigationForm() {
             <option value="ACADEMIC">Academic / scientific</option>
             <option value="NEWS">News / current events</option>
             <option value="HISTORICAL">Historical</option>
-            <option value="MEDIA">Image / video</option>
+            <option value="MEDIA">Image / visual media</option>
             <option value="CORPORATE">Corporate / organization</option>
             <option value="OSINT">General OSINT</option>
           </select>
