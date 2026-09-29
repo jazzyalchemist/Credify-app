@@ -12,6 +12,7 @@ import {
 import { createSearchLog } from "@/lib/db/evidence";
 import {
   upsertCredibilityAssessment,
+  validateAndTotalDimensionScores,
   type DimensionScores,
 } from "@/lib/db/credibility";
 import {
@@ -50,6 +51,7 @@ import { listArtifacts } from "@/lib/db/artifacts";
 import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
 import { artifactNeedsQuantitativeForensics } from "@/lib/artifacts/content";
 import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
+import { validateFinalConfidence } from "@/lib/protocol/confidence";
 import {
   loadCanonicalReconciliationProtocol,
   loadCanonicalRedTeamProtocol,
@@ -1019,6 +1021,60 @@ export async function processReconciliationResponse(
         "validated challenge evidence, or its own web-search results: " +
         [...new Set(invalidEvidenceRefs)].join(", "),
     );
+  }
+
+  const finalMatrixScore = validateAndTotalDimensionScores(
+    output.investigation_dimension_scores,
+  );
+
+  for (const adjudication of output.adjudications) {
+    const challenge = challengeById.get(adjudication.challenge_id);
+    const originalClaim = challenge
+      ? claimById.get(challenge.claim_id)
+      : null;
+
+    if (
+      adjudication.classification === "UNRESOLVED_CONFLICT" &&
+      adjudication.revised_confidence > 75
+    ) {
+      throw new Error(
+        "UNRESOLVED_CONFLICT adjudication cannot exceed 75% revised confidence.",
+      );
+    }
+
+    if (
+      adjudication.classification === "UNRESOLVED_CONFLICT" &&
+      !adjudication.unresolved_issue.trim()
+    ) {
+      throw new Error(
+        "UNRESOLVED_CONFLICT adjudication must preserve the unresolved issue explicitly.",
+      );
+    }
+
+    if (
+      adjudication.classification === "CONFIDENCE_OVERSTATEMENT" &&
+      originalClaim?.first_pass_confidence !== null &&
+      originalClaim?.first_pass_confidence !== undefined &&
+      adjudication.revised_confidence >
+        Number(originalClaim.first_pass_confidence)
+    ) {
+      throw new Error(
+        "A validated CONFIDENCE_OVERSTATEMENT cannot increase revised confidence above the original.",
+      );
+    }
+  }
+
+  for (const finalClaim of output.final_claims) {
+    validateFinalConfidence({
+      status: finalClaim.status,
+      confidence: finalClaim.confidence,
+      unresolvedChallengeCount: new Set(
+        finalClaim.unresolved_challenge_ids,
+      ).size,
+      investigationCriticalFailureCount:
+        output.investigation_critical_failures.length,
+      finalMatrixScore,
+    });
   }
 
   for (const query of queries) {
