@@ -45,6 +45,7 @@ type ReportOutput = {
   independent_corroboration: string;
   media_url_digital_forensics: string;
   historical_cultural_context: string;
+  temporal_verification: string;
   strongest_supporting_evidence: string;
   strongest_contrary_evidence: string;
   counter_hypothesis_test: string;
@@ -70,16 +71,17 @@ const SECTIONS: Array<[keyof ReportOutput, string]> = [
   ["independent_corroboration", "10. Independent Corroboration"],
   ["media_url_digital_forensics", "11. Media / URL / Digital Forensics"],
   ["historical_cultural_context", "12. Historical & Cultural Context"],
-  ["strongest_supporting_evidence", "13. Strongest Supporting Evidence"],
-  ["strongest_contrary_evidence", "14. Strongest Contrary Evidence"],
-  ["counter_hypothesis_test", "15. Counter-Hypothesis Test"],
-  ["known_unknowns", "16. Known Unknowns"],
-  ["credibility_matrix", "17. Credibility Matrix"],
-  ["claim_level_confidence", "18. Claim-Level Confidence"],
-  ["final_assessment", "19. Assessment"],
-  ["source_ledger_summary", "20. Source Ledger Summary"],
-  ["adversarial_validation", "21. Adversarial Validation"],
-  ["limitations_and_future_evidence", "22. Limitations & Future Evidence"],
+  ["temporal_verification", "13. Temporal Verification"],
+  ["strongest_supporting_evidence", "14. Strongest Supporting Evidence"],
+  ["strongest_contrary_evidence", "15. Strongest Contrary Evidence"],
+  ["counter_hypothesis_test", "16. Counter-Hypothesis Test"],
+  ["known_unknowns", "17. Known Unknowns"],
+  ["credibility_matrix", "18. Credibility Matrix"],
+  ["claim_level_confidence", "19. Claim-Level Confidence"],
+  ["final_assessment", "20. Assessment"],
+  ["source_ledger_summary", "21. Source Ledger Summary"],
+  ["adversarial_validation", "22. Adversarial Validation"],
+  ["limitations_and_future_evidence", "23. Limitations & Future Evidence"],
 ];
 
 function mapExternalStatus(status: string) {
@@ -393,7 +395,9 @@ Do not introduce new sources or facts. This reporting stage summarizes the audit
 record; it does not reopen evidence discovery.
 
 Preserve claim-level uncertainty. Distinguish source credibility score from claim
-confidence. Do not allow an aggregate score to conceal critical failures. Make
+confidence. The temporal_verification section must explicitly summarize source/claim
+time-scope alignment, material staleness, historical-only evidence, and unresolved
+date/version questions; do not hide those limitations inside general context. Do not allow an aggregate score to conceal critical failures. Make
 source independence and information-origin issues explicit.
 
 OVERALL CREDIBILITY MATRIX:
