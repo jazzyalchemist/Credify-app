@@ -47,6 +47,11 @@ export function canEnterPhase(
     if (state.sourceCount < 1) {
       blockers.push("Synthesis requires at least one evaluated source.");
     }
+    if (state.unresolvedInformationOrigin) {
+      warnings.push(
+        "One or more included sources have an assessed-but-unresolved information origin; synthesis must preserve this independence uncertainty.",
+      );
+    }
   }
 
   if (target === "PRE_REDTEAM" && !state.claimSynthesisComplete) {
@@ -83,6 +88,11 @@ export function canEnterPhase(
     if (state.criticalFailure) {
       warnings.push(
         "Critical-failure override is active; aggregate scores cannot supersede it.",
+      );
+    }
+    if (state.unresolvedInformationOrigin) {
+      warnings.push(
+        "One or more included sources still have unresolved information origin; final confidence must not assume independent corroboration for them.",
       );
     }
   }
