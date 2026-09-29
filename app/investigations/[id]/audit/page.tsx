@@ -72,12 +72,26 @@ export default async function AuditPage({
       subtitle="The evidence trail behind the conclusion: protocol version, source provenance, searches, scoring, AI operations, adversarial challenges, and reconciliation."
     >
       <div className="auditToolbar">
-        <Link
-          className="ghostButton"
-          href={"/investigations/" + encodeURIComponent(id)}
-        >
-          ← Back to investigation
-        </Link>
+        <div className="auditActions">
+          <Link
+            className="ghostButton"
+            href={"/investigations/" + encodeURIComponent(id)}
+          >
+            ← Back to investigation
+          </Link>
+          {investigation.pre_redteam_snapshot_hash ? (
+            <a
+              className="smallButton"
+              href={
+                "/api/investigations/" +
+                encodeURIComponent(id) +
+                "/dossier/download"
+              }
+            >
+              Download frozen dossier
+            </a>
+          ) : null}
+        </div>
         <div>
           <span>Protocol commit</span>
           <code>{investigation.protocol_commit}</code>
