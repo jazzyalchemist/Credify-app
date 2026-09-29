@@ -330,6 +330,7 @@ export default async function InvestigationPage({
                       <span>Screening: {source.screening_decision}</span>
                       <span>Retrieval: {source.retrieval_status}</span>
                       <span>Provenance: {source.provenance_status}</span>
+                      <span>Origin: {source.information_origin_status}</span>
                       <span>
                         Score:{" "}
                         {confidence(source.credibility_score) === null
@@ -347,6 +348,7 @@ export default async function InvestigationPage({
                         primaryOrSecondary={source.primary_or_secondary}
                         screeningDecision={source.screening_decision}
                         originId={source.information_origin_id}
+                        originStatus={source.information_origin_status}
                         credibilityScore={confidence(source.credibility_score)}
                       />
                     ) : null}
