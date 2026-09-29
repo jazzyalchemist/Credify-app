@@ -66,6 +66,11 @@ type ScreeningOutput = {
   unresolved_retrieval_questions: string[];
 };
 
+type DependencyEvidence = {
+  key: string;
+  evidence_urls: string[];
+};
+
 type SourceAuditOutput = {
   source_id: string;
   retrieval_status: "RETRIEVED" | "PARTIAL" | "NOT_RETRIEVED";
@@ -73,6 +78,14 @@ type SourceAuditOutput = {
   provenance_status: "VERIFIED" | "PARTIAL" | "FAILED";
   information_origin_url: string;
   information_origin_status: "VERIFIED" | "UNRESOLVED";
+  independence_fingerprint: {
+    wire_or_release: DependencyEvidence;
+    datasets: DependencyEvidence[];
+    authors: DependencyEvidence[];
+    institutions: DependencyEvidence[];
+    funders: DependencyEvidence[];
+    notes: string[];
+  };
   author: string;
   institution: string;
   author_expertise_summary: string;
