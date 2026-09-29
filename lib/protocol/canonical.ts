@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+import { BUNDLED_PROTOCOL_FILES } from "./bundled-v0.1";
 import { PROTOCOL } from "./manifest";
 
 type CanonicalFileKey =
@@ -51,14 +53,84 @@ interface GitHubBlobResponse {
   encoding: string;
 }
 
-function githubToken() {
-  const token = process.env.PROTOCOL_GITHUB_TOKEN;
-  if (!token) {
+function gitBlobSha(content: string) {
+  const body = Buffer.from(content, "utf8");
+  const header = Buffer.from("blob " + body.length + "\0", "utf8");
+  return createHash("sha1").update(header).update(body).digest("hex");
+}
+
+function verifyBundledFile(
+  path: string,
+  expectedSha: string,
+): string {
+  const content = BUNDLED_PROTOCOL_FILES[path];
+
+  if (typeof content !== "string") {
     throw new Error(
-      "PROTOCOL_GITHUB_TOKEN is not configured. Credify refuses to run AI research without loading the exact pinned methodology.",
+      "Bundled canonical protocol file is missing: " + path + ".",
     );
   }
-  return token;
+
+  const actualSha = gitBlobSha(content);
+  if (actualSha !== expectedSha) {
+    throw new Error(
+      "Bundled canonical protocol integrity failure for " +
+        path +
+        ": computed Git blob SHA " +
+        actualSha +
+        " did not match pinned SHA " +
+        expectedSha +
+        ".",
+    );
+  }
+
+  return content;
+}
+
+async function tryLoadLive(
+  path: string,
+  expectedSha: string,
+): Promise<string | null> {
+  const token = process.env.PROTOCOL_GITHUB_TOKEN;
+  if (!token) return null;
+
+  const url =
+    "https://api.github.com/repos/" +
+    PROTOCOL.repository +
+    "/git/blobs/" +
+    expectedSha;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: "Bearer " + token,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "Credify/" + PROTOCOL.version,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) return null;
+
+    const body = (await response.json()) as GitHubBlobResponse;
+    if (body.sha !== expectedSha || body.encoding !== "base64") {
+      return null;
+    }
+
+    const decoded = Buffer.from(
+      body.content.replace(/\n/g, ""),
+      "base64",
+    ).toString("utf8");
+
+    if (gitBlobSha(decoded) !== expectedSha) {
+      return null;
+    }
+
+    return decoded;
+  } catch {
+    return null;
+  }
 }
 
 async function loadFile(key: CanonicalFileKey): Promise<string> {
@@ -66,53 +138,11 @@ async function loadFile(key: CanonicalFileKey): Promise<string> {
   if (cached) return cached;
 
   const file = FILES[key];
-  const url =
-    "https://api.github.com/repos/" +
-    PROTOCOL.repository +
-    "/git/blobs/" +
-    file.blobSha;
+  const live = await tryLoadLive(file.path, file.blobSha);
+  const content = live ?? verifyBundledFile(file.path, file.blobSha);
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: "Bearer " + githubToken(),
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "Credify/" + PROTOCOL.version,
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      "Unable to load canonical protocol file " +
-        file.path +
-        " from the pinned methodology repository.",
-    );
-  }
-
-  const body = (await response.json()) as GitHubBlobResponse;
-  if (body.sha !== file.blobSha) {
-    throw new Error(
-      "Canonical protocol integrity failure for " +
-        file.path +
-        ": Git blob SHA did not match the pinned manifest.",
-    );
-  }
-  if (body.encoding !== "base64") {
-    throw new Error(
-      "Unexpected GitHub encoding while loading canonical protocol file " +
-        file.path +
-        ".",
-    );
-  }
-
-  const decoded = Buffer.from(
-    body.content.replace(/\n/g, ""),
-    "base64",
-  ).toString("utf8");
-
-  cache.set(key, decoded);
-  return decoded;
+  cache.set(key, content);
+  return content;
 }
 
 function wrap(path: string, sha: string, content: string) {
@@ -172,6 +202,8 @@ export function canonicalProtocolManifest() {
     repository: PROTOCOL.repository,
     commit: PROTOCOL.commit,
     releaseRef: PROTOCOL.releaseRef,
+    liveRefreshOptional: true,
+    bundledFallbackIntegrity: "git-blob-sha1",
     files: FILES,
   };
 }
