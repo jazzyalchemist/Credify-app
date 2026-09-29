@@ -48,6 +48,7 @@ test("artifact input parts preserve filename and high-detail visual review", () 
     storage_provider: "NETLIFY_BLOBS",
     storage_key: "k",
     capture_method: "USER_UPLOAD",
+    metadata: {},
     captured_at: new Date(),
     created_at: new Date(),
   };
