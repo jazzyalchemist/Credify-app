@@ -14,6 +14,7 @@ import {
   listAiJobs,
   updateAiJobStatus,
   aiProcessingLeaseExpired,
+  type AiJobRecord,
 } from "@/lib/db/ai-jobs";
 import {
   createSearchLog,
@@ -68,6 +69,8 @@ type DecompositionOutput = {
   known_ambiguities: string[];
 };
 
+type SearchStrategy = DecompositionOutput["search_strategy"];
+
 type DiscoveryOutput = {
   research_summary: string;
   selected_sources: Array<{
@@ -88,6 +91,87 @@ function mapExternalStatus(status: string) {
   if (status === "in_progress") return "IN_PROGRESS" as const;
   if (status === "completed") return "IN_PROGRESS" as const;
   return "FAILED" as const;
+}
+
+
+function validStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item) => typeof item === "string")
+  );
+}
+
+function searchStrategyFromDecompositionJobs(
+  jobs: AiJobRecord[],
+): SearchStrategy | null {
+  const job = jobs.find(
+    (candidate) =>
+      candidate.job_type === "DECOMPOSE" &&
+      candidate.status === "COMPLETED" &&
+      candidate.result_payload,
+  );
+  if (!job?.result_payload || typeof job.result_payload !== "object") {
+    return null;
+  }
+
+  const payload = job.result_payload as Record<string, unknown>;
+  const output =
+    payload.output && typeof payload.output === "object"
+      ? (payload.output as Record<string, unknown>)
+      : null;
+  const decomposition =
+    output?.decomposition && typeof output.decomposition === "object"
+      ? (output.decomposition as Record<string, unknown>)
+      : null;
+  const strategy =
+    decomposition?.search_strategy &&
+    typeof decomposition.search_strategy === "object"
+      ? (decomposition.search_strategy as Record<string, unknown>)
+      : null;
+
+  if (
+    !strategy ||
+    !validStringArray(strategy.languages) ||
+    !validStringArray(strategy.jurisdictions) ||
+    !validStringArray(strategy.evidence_streams) ||
+    !validStringArray(strategy.opposing_queries)
+  ) {
+    return null;
+  }
+
+  return {
+    languages: strategy.languages,
+    jurisdictions: strategy.jurisdictions,
+    evidence_streams: strategy.evidence_streams,
+    opposing_queries: strategy.opposing_queries,
+  };
+}
+
+function searchStrategyFromJobPayload(payload: unknown): SearchStrategy | null {
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  const strategy =
+    record.plannedSearchStrategy &&
+    typeof record.plannedSearchStrategy === "object"
+      ? (record.plannedSearchStrategy as Record<string, unknown>)
+      : null;
+
+  if (
+    !strategy ||
+    !validStringArray(strategy.languages) ||
+    !validStringArray(strategy.jurisdictions) ||
+    !validStringArray(strategy.evidence_streams) ||
+    !validStringArray(strategy.opposing_queries)
+  ) {
+    return null;
+  }
+
+  return {
+    languages: strategy.languages,
+    jurisdictions: strategy.jurisdictions,
+    evidence_streams: strategy.evidence_streams,
+    opposing_queries: strategy.opposing_queries,
+  };
 }
 
 function inputContainsUrl(value: string) {
@@ -124,7 +208,8 @@ export async function startDecomposition(investigationId: string) {
     throw new Error("Claim decomposition is only available during INTAKE.");
   }
 
-  const activeJobs = (await listAiJobs(investigationId)).filter((job) =>
+  const priorJobs = await listAiJobs(investigationId, 100);
+  const activeJobs = priorJobs.filter((job) =>
     ["QUEUED", "IN_PROGRESS", "PROCESSING"].includes(job.status),
   );
   if (activeJobs.length > 0) {
@@ -245,6 +330,9 @@ export async function startDiscovery(investigationId: string) {
     throw new Error("Evidence discovery requires at least one decomposed claim.");
   }
 
+  const plannedSearchStrategy =
+    searchStrategyFromDecompositionJobs(priorJobs);
+
   const model = researchModel();
   const canonicalProtocol = await loadCanonicalInitialProtocol();
   const requestPayload = {
@@ -263,7 +351,14 @@ export async function startDiscovery(investigationId: string) {
         role: "system",
         content: CREDIFY_RESEARCH_SYSTEM + "\n\n" + canonicalProtocol,
       },
-      { role: "user", content: discoveryPrompt(investigation, claims) },
+      {
+        role: "user",
+        content: discoveryPrompt(
+          investigation,
+          claims,
+          plannedSearchStrategy,
+        ),
+      },
     ],
     text: {
       format: {
@@ -288,6 +383,10 @@ export async function startDiscovery(investigationId: string) {
       purpose: "evidence_discovery",
       claimIds: claims.map((claim) => claim.id),
       artifactSources: linkedArtifacts,
+      plannedSearchStrategy,
+      coveragePlanStatus: plannedSearchStrategy
+        ? "DECOMPOSITION_PLAN_AVAILABLE"
+        : "NO_DECOMPOSITION_PLAN",
     },
   });
 
@@ -390,7 +489,10 @@ async function processDiscovery(
   claims: ClaimRecord[],
   output: DiscoveryOutput,
   rawResponse: Awaited<ReturnType<typeof retrieveResponse>>,
+  job: AiJobRecord,
 ) {
+  const plannedSearchStrategy =
+    searchStrategyFromJobPayload(job.request_payload);
   const actualSources = extractWebSources(rawResponse);
   const actualByNormalizedUrl = new Map(
     actualSources.map((source) => [normalizedUrl(source.url), source]),
@@ -450,6 +552,10 @@ async function processDiscovery(
     webQueries: queries,
     coverageGaps: output.coverage_gaps,
     contraryEvidenceSought: output.contrary_evidence_sought,
+    plannedSearchStrategy,
+    coveragePlanStatus: plannedSearchStrategy
+      ? "DECOMPOSITION_PLAN_AVAILABLE"
+      : "NO_DECOMPOSITION_PLAN",
   });
 
   return {
@@ -460,6 +566,10 @@ async function processDiscovery(
     webQueries: queries,
     contraryEvidenceSought: output.contrary_evidence_sought,
     coverageGaps: output.coverage_gaps,
+    plannedSearchStrategy,
+    coveragePlanStatus: plannedSearchStrategy
+      ? "DECOMPOSITION_PLAN_AVAILABLE"
+      : "NO_DECOMPOSITION_PLAN",
   };
 }
 
@@ -538,6 +648,7 @@ export async function refreshAiJob(
         claims,
         parseJson<DiscoveryOutput>(text),
         response,
+        claimed,
       );
     } else if (job.job_type === "SCREENING") {
       result = await processScreeningResponse(claimed, response);
