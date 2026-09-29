@@ -558,13 +558,25 @@ export async function processReportResponse(
   }
 
   const structured = parseJson<ReportOutput>(extractOutputText(response));
-  const sources = await getSources(job.investigation_id);
-  validateReportCitations(structured, sources);
+  const [sources, challenges, reconciliations] = await Promise.all([
+    getSources(job.investigation_id),
+    listChallenges(job.investigation_id),
+    listReconciliations(job.investigation_id),
+  ]);
+  validateReportCitations(
+    structured,
+    stage,
+    sources,
+    challenges,
+    reconciliations,
+  );
   const markdown = renderMarkdown(
     investigation.title,
     stage,
     structured,
     sources,
+    challenges,
+    reconciliations,
   );
   const report = await createReport({
     investigationId: job.investigation_id,
