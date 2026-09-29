@@ -2,6 +2,37 @@ export const REDTEAM_REVIEW_SCHEMA = {
   type: "object",
   properties: {
     summary: { type: "string" },
+    claim_reviews: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          claim_id: { type: "string" },
+          outcome: {
+            type: "string",
+            enum: [
+              "SURVIVED_SCRUTINY",
+              "CHALLENGED",
+              "UNRESOLVED",
+              "NOT_APPLICABLE_TO_ROLE",
+            ],
+          },
+          attack_summary: { type: "string" },
+          strongest_counterevidence_sought: { type: "string" },
+          evidence_gap: { type: "string" },
+          self_falsification_condition: { type: "string" },
+        },
+        required: [
+          "claim_id",
+          "outcome",
+          "attack_summary",
+          "strongest_counterevidence_sought",
+          "evidence_gap",
+          "self_falsification_condition",
+        ],
+        additionalProperties: false,
+      },
+    },
     challenges: {
       type: "array",
       items: {
@@ -35,6 +66,21 @@ export const REDTEAM_REVIEW_SCHEMA = {
             maximum: 100,
           },
           rationale: { type: "string" },
+          evidence_strength: {
+            type: "string",
+            enum: [
+              "DIRECT_PRIMARY",
+              "INDEPENDENT_CORROBORATED",
+              "SECONDARY",
+              "METHODOLOGICAL_LOGICAL",
+              "TENTATIVE",
+            ],
+          },
+          materiality: {
+            type: "string",
+            enum: ["CRITICAL", "MATERIAL"],
+          },
+          self_falsification_condition: { type: "string" },
           unresolved_questions: {
             type: "array",
             items: { type: "string" },
@@ -49,6 +95,9 @@ export const REDTEAM_REVIEW_SCHEMA = {
           "proposed_claim_status",
           "proposed_confidence",
           "rationale",
+          "evidence_strength",
+          "materiality",
+          "self_falsification_condition",
           "unresolved_questions",
         ],
         additionalProperties: false,
@@ -59,7 +108,7 @@ export const REDTEAM_REVIEW_SCHEMA = {
       items: { type: "string" },
     },
   },
-  required: ["summary", "challenges", "global_findings"],
+  required: ["summary", "claim_reviews", "challenges", "global_findings"],
   additionalProperties: false,
 } as const;
 
