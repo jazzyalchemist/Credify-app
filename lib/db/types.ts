@@ -58,4 +58,5 @@ export interface SourceRecord {
   retrieval_status: string;
   included_in_synthesis: boolean;
   information_origin_id: string | null;
+  information_origin_status: string;
 }
