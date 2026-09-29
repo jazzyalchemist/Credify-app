@@ -86,8 +86,9 @@ export function RedTeamPanel({
 
       <p className="panelIntro">
         Each role receives the same frozen Page-1 dossier but not the other
-        reviewers&apos; conclusions. Agreement among models is not counted as
-        independent evidence; attacks must survive evidence-based reconciliation.
+        reviewers&apos; conclusions. Agreement among reviewer instances is not
+        independent evidence, and model/provider diversity is not assumed. Every
+        attack must survive evidence-based reconciliation.
       </p>
 
       <div className="redteamRoleGrid">
@@ -113,6 +114,23 @@ export function RedTeamPanel({
               </div>
               <h3>{role.name}</h3>
               <p>{role.mission}</p>
+              <details className="incentiveLens">
+                <summary>Rival incentive lens</summary>
+                <dl>
+                  <div>
+                    <dt>Reward</dt>
+                    <dd>{role.rewardTarget}</dd>
+                  </div>
+                  <div>
+                    <dt>False-positive penalty</dt>
+                    <dd>{role.falsePositivePenalty}</dd>
+                  </div>
+                  <div>
+                    <dt>Self-falsification</dt>
+                    <dd>{role.selfFalsificationPriority}</dd>
+                  </div>
+                </dl>
+              </details>
               {review?.model_version ? (
                 <small>{review.model_version}</small>
               ) : null}
