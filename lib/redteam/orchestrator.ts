@@ -268,8 +268,7 @@ export async function startRedTeam(investigationId: string) {
           {
             type: "web_search",
             search_context_size: "high",
-            external_web_access: true,
-          },
+},
         ],
         tool_choice: "required",
         include: ["web_search_call.action.sources"],
@@ -502,8 +501,7 @@ export async function startReconciliation(investigationId: string) {
       {
         type: "web_search",
         search_context_size: "high",
-        external_web_access: true,
-      },
+},
     ],
     tool_choice: "auto",
     include: ["web_search_call.action.sources"],
