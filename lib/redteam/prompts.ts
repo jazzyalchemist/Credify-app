@@ -172,6 +172,17 @@ Requirements:
 - Evidence references must be concrete source IDs/URLs from the frozen dossier,
   exact challenge IDs, URLs already accepted inside challenge evidence, or URLs
   actually returned by your own web search. Do not invent free-form evidence labels.
+- For every final claim, return driving_challenge_ids, surviving_evidence_refs,
+  unresolved_challenge_ids, and change_summary.
+- Challenge IDs in a claim trace must belong to that exact claim.
+- unresolved_challenge_ids may contain only challenges you adjudicated as
+  UNRESOLVED_CONFLICT.
+- If final wording/status/confidence changes materially, identify at least one
+  driving challenge or surviving evidence reference. Do not make untraceable final
+  changes.
+- surviving_evidence_refs must use the same admissible evidence-reference universe
+  as adjudications: frozen source IDs/URLs, challenge IDs/accepted challenge URLs,
+  or URLs actually returned by your own web search.
 - Revised confidence must reflect surviving evidence and unresolved uncertainty,
   not reviewer vote totals.
 - Return investigation_dimension_scores, investigation_critical_failures, and
