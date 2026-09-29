@@ -551,8 +551,23 @@ For EVERY claim ID exactly once:
   computing the total yourself.
 
 Confidence and matrix score are different concepts. A matrix score describes the
-quality/integrity of the evidentiary basis; confidence describes how strongly the
-surviving evidence supports the proposition.
+quality/integrity of the evidentiary basis; confidence is the estimated confidence
+that the claim proposition AS WORDED is true.
+
+CALIBRATION:
+- VERIFIED requires at least 95% proposition confidence.
+- HIGH_CONFIDENCE means 90% to below 99.999%.
+- TENTATIVE must not exceed 75%.
+- UNKNOWN must not exceed 60%.
+- CONTRADICTED must not exceed 40% confidence that the proposition is true.
+- An unresolved material conflict or critical evidentiary failure caps confidence
+  at 75%.
+- Missing required primary evidence caps confidence at 90%.
+- Temporally MISALIGNED evidence caps confidence at 75%.
+- Confidence above 99.999% is extraordinary and is reserved for VERIFIED claims
+  with exceptionally strong evidentiary integrity, required primary evidence,
+  no unresolved/critical failures, and temporal alignment. Do not inflate a number
+  merely because the user requested high accuracy.
 
 Also return investigation_dimension_scores for the investigation as a whole, plus
 investigation_critical_failures and investigation_rationale. This overall matrix is
