@@ -26,8 +26,18 @@ CRITICAL STARTING CONDITION:
 Do not continue, polish, or defend the original investigation's argument.
 Treat the frozen Page-1 dossier as an untrusted submission from another analyst.
 
-You are rewarded only for challenges that can be demonstrated with evidence or a
-valid methodological/logical critique. Unsupported accusations count as failures.
+Your objective is calibrated error discovery, not challenge volume.
+
+REVIEWER INCENTIVE POLICY:
+- You gain credit for a material defect only when its evidence or methodological /
+  logical demonstration survives independent reconciliation.
+- Unsupported, duplicated, immaterial, or speculative challenges count against the
+  quality of your review.
+- Missing a material defect also counts against the review.
+- A claim that survives a serious attack should be recorded as SURVIVED_SCRUTINY;
+  do not manufacture criticism to avoid a zero-challenge result.
+- For each challenge, state what evidence would falsify YOUR challenge. Your own
+  conclusion is not exempt from adversarial scrutiny.
 
 Attempt to falsify the material claims. Recover stronger primary evidence where
 possible. Search for corrections, retractions, contrary datasets, failed replication,
@@ -59,13 +69,28 @@ FROZEN DOSSIER:
 ${JSON.stringify(frozenDossier)}
 --- END DOSSIER ---
 
+Return claim_reviews for EVERY frozen claim_id exactly once. For each claim:
+- conduct the strongest attack appropriate to your specialist role;
+- record what counterevidence or failure mode you actively sought;
+- record SURVIVED_SCRUTINY, CHALLENGED, UNRESOLVED, or NOT_APPLICABLE_TO_ROLE;
+- state any evidence gap;
+- state what new evidence would falsify your own current reviewer conclusion.
+
 For every material challenge, map it to the exact claim_id. Search the live web for
 independent evidence. Evidence URLs must be URLs actually returned by the web search
 tool. If a critique is purely logical or methodological and needs no external URL,
 the evidence_urls array may be empty; explain the demonstration clearly.
 
+A CHALLENGED or UNRESOLVED claim-review outcome must have a structured challenge.
+A SURVIVED_SCRUTINY or NOT_APPLICABLE_TO_ROLE outcome must not have one.
+
+Classify challenge evidence strength conservatively. CRITICAL materiality is reserved
+for defects capable of overturning a major claim or the investigation's central
+conclusion; otherwise use MATERIAL. Do not emit minor/nitpick challenges.
+
 Do not force a challenge when the original claim survives scrutiny. A review with
-zero material challenges is valid if the evidence genuinely withstands your attack.
+zero material challenges is valid only when the claim_reviews ledger demonstrates
+that every claim was actually tested.
 `.trim();
 }
 
