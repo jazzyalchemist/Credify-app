@@ -99,10 +99,74 @@ function parseJson<T>(text: string): T {
   }
 }
 
+function sourceCitationMap(
+  sources: Awaited<ReturnType<typeof getSources>>,
+) {
+  return new Map(
+    sources.map((source) => [
+      source.id,
+      {
+        title: source.title,
+        url: source.url_or_identifier,
+      },
+    ]),
+  );
+}
+
+function citedSourceIds(report: ReportOutput) {
+  const ids = new Set<string>();
+  const pattern = /\[(SRC-[A-Za-z0-9-]+)\]/g;
+
+  for (const value of Object.values(report)) {
+    for (const match of value.matchAll(pattern)) {
+      ids.add(match[1]);
+    }
+  }
+
+  return ids;
+}
+
+function validateReportCitations(
+  report: ReportOutput,
+  sources: Awaited<ReturnType<typeof getSources>>,
+) {
+  const sourceById = sourceCitationMap(sources);
+  const cited = citedSourceIds(report);
+  const unknown = [...cited].filter((id) => !sourceById.has(id));
+
+  if (unknown.length > 0) {
+    throw new Error(
+      "Report cited unknown source IDs: " + unknown.join(", ") + ".",
+    );
+  }
+
+  if (sources.length > 0 && cited.size === 0) {
+    throw new Error(
+      "Report contains evaluated evidence but no validated [SRC-...] citations.",
+    );
+  }
+}
+
+function renderCitationMarkdown(
+  value: string,
+  sources: Awaited<ReturnType<typeof getSources>>,
+) {
+  const sourceById = sourceCitationMap(sources);
+  return value.replace(
+    /\[(SRC-[A-Za-z0-9-]+)\]/g,
+    (token, id: string) => {
+      const source = sourceById.get(id);
+      if (!source?.url || !/^https?:\/\//i.test(source.url)) return token;
+      return "[" + id + "](" + source.url + ")";
+    },
+  );
+}
+
 function renderMarkdown(
   investigationTitle: string,
   stage: "PRE_REDTEAM" | "FINAL",
   report: ReportOutput,
+  sources: Awaited<ReturnType<typeof getSources>>,
 ) {
   const heading =
     stage === "PRE_REDTEAM"
@@ -110,7 +174,11 @@ function renderMarkdown(
       : "Adversarially Hardened Final Credibility Report";
 
   const body = SECTIONS.map(
-    ([key, title]) => "## " + title + "\n\n" + report[key].trim(),
+    ([key, title]) =>
+      "## " +
+      title +
+      "\n\n" +
+      renderCitationMarkdown(report[key].trim(), sources),
   ).join("\n\n---\n\n");
 
   return [
@@ -184,6 +252,15 @@ record; it does not reopen evidence discovery.
 Preserve claim-level uncertainty. Distinguish source credibility score from claim
 confidence. Do not allow an aggregate score to conceal critical failures. Make
 source independence and information-origin issues explicit.
+
+CITATION CONTRACT:
+- Every evidence-derived factual statement must cite the exact source ledger ID in
+  square brackets, for example [SRC-123].
+- Use only source IDs present in the INVESTIGATION RECORD.
+- Never invent a source ID or substitute a free-form URL for a source-ledger citation.
+- Place citations immediately after the statement they support.
+- Unsupported or unresolved statements must be labeled as such rather than given a
+  fabricated citation.
 
 For PRE_REDTEAM:
 - adversarial_validation must clearly state that independent rival review has NOT
@@ -310,7 +387,14 @@ export async function processReportResponse(
   if (!stage) throw new Error("Unsupported report job type.");
 
   const structured = parseJson<ReportOutput>(extractOutputText(response));
-  const markdown = renderMarkdown(investigation.title, stage, structured);
+  const sources = await getSources(job.investigation_id);
+  validateReportCitations(structured, sources);
+  const markdown = renderMarkdown(
+    investigation.title,
+    stage,
+    structured,
+    sources,
+  );
   const report = await createReport({
     investigationId: job.investigation_id,
     stage,
