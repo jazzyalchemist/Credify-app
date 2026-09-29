@@ -209,6 +209,29 @@ publication/peer-review status, correction/retraction history, citation integrit
 methodology, data/statistics, funding/conflicts, transparency/reproducibility,
 historical/cultural/temporal context, and media/digital authenticity.
 
+MEDIA FORENSICS CONTRACT:
+- Always return the structured media_forensics object.
+- For non-media/non-visual sources, set applicability to NOT_APPLICABLE and keep
+  media-specific findings empty or explicitly not applicable.
+- For an attached image, PDF, screenshot, chart, or other visual artifact, inspect
+  visible content for cropping, compositing, inconsistent text, lighting/shadows,
+  perspective, duplicate regions, mismatched timestamps, contextual mismatch, or
+  other manipulation indicators that can actually be supported.
+- Do not claim EXIF, camera, GPS, creation-time, editing-history, or other embedded
+  metadata unless that metadata was actually made available in the record or by a
+  verified external source. If not available, set metadata_status to NOT_PROVIDED.
+- Search the web for earliest publication/context and for textual corroboration of
+  visual details when possible. Distinguish the earliest publication you can verify
+  from the true original, which may remain unknown.
+- Credify's current toolset does NOT perform native reverse-image matching. Set
+  reverse_image_search_status to NOT_AVAILABLE_IN_CURRENT_TOOLING unless the source
+  is not media (NOT_APPLICABLE) or you found only textual/web corroboration
+  (TEXTUAL_CORROBORATION_ONLY). Never imply a reverse-image engine was used.
+- Geolocation/chronolocation findings must state the concrete visual or documentary
+  basis and uncertainty. If not supportable, say so.
+- Put unresolved metadata/origin/manipulation questions in
+  unresolved_media_questions rather than inventing an answer.
+
 Trace the source toward its true information origin. Set information_origin_url to
 the best verified canonical originating URL actually returned by web search and set
 information_origin_status to VERIFIED. If a serious search cannot establish the
