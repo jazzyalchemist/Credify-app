@@ -46,7 +46,7 @@ export function AIResearchPanel({
               encodeURIComponent(investigationId) +
               "/ai/jobs/" +
               encodeURIComponent(job.id),
-            { cache: "no-store" },
+            { method: "POST", cache: "no-store" },
           ).catch(() => null),
         ),
       );
