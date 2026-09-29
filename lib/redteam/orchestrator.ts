@@ -47,6 +47,18 @@ import {
 
 type RedTeamOutput = {
   summary: string;
+  claim_reviews: Array<{
+    claim_id: string;
+    outcome:
+      | "SURVIVED_SCRUTINY"
+      | "CHALLENGED"
+      | "UNRESOLVED"
+      | "NOT_APPLICABLE_TO_ROLE";
+    attack_summary: string;
+    strongest_counterevidence_sought: string;
+    evidence_gap: string;
+    self_falsification_condition: string;
+  }>;
   challenges: Array<{
     claim_id: string;
     attack_method: string;
@@ -62,6 +74,14 @@ type RedTeamOutput = {
     proposed_claim_status: "UPHELD" | "MODIFIED" | "DISPROVEN" | "UNCERTAIN";
     proposed_confidence: number;
     rationale: string;
+    evidence_strength:
+      | "DIRECT_PRIMARY"
+      | "INDEPENDENT_CORROBORATED"
+      | "SECONDARY"
+      | "METHODOLOGICAL_LOGICAL"
+      | "TENTATIVE";
+    materiality: "CRITICAL" | "MATERIAL";
+    self_falsification_condition: string;
     unresolved_questions: string[];
   }>;
   global_findings: string[];
@@ -344,6 +364,70 @@ export async function processRedTeamReviewResponse(
   const claims = await getClaims(job.investigation_id);
   const claimIds = new Set(claims.map((claim) => claim.id));
   const output = parseJson<RedTeamOutput>(extractOutputText(response));
+  const claimReviewIds = output.claim_reviews.map((item) => item.claim_id);
+  const seenClaimReviewIds = new Set<string>();
+  const duplicateClaimReviewIds: string[] = [];
+  const unknownClaimReviewIds: string[] = [];
+
+  for (const claimId of claimReviewIds) {
+    if (!claimIds.has(claimId)) unknownClaimReviewIds.push(claimId);
+    if (seenClaimReviewIds.has(claimId)) duplicateClaimReviewIds.push(claimId);
+    seenClaimReviewIds.add(claimId);
+  }
+
+  const missingClaimReviewIds = [...claimIds].filter(
+    (claimId) => !seenClaimReviewIds.has(claimId),
+  );
+
+  if (
+    unknownClaimReviewIds.length ||
+    duplicateClaimReviewIds.length ||
+    missingClaimReviewIds.length
+  ) {
+    throw new Error(
+      "Rival reviewer claim-coverage ledger failed. Missing: " +
+        (missingClaimReviewIds.join(", ") || "none") +
+        "; unknown: " +
+        ([...new Set(unknownClaimReviewIds)].join(", ") || "none") +
+        "; duplicates: " +
+        ([...new Set(duplicateClaimReviewIds)].join(", ") || "none") +
+        ".",
+    );
+  }
+
+  const challengedClaimIds = new Set(
+    output.challenges.map((challenge) => challenge.claim_id),
+  );
+
+  for (const review of output.claim_reviews) {
+    const hasChallenge = challengedClaimIds.has(review.claim_id);
+    if (
+      ["CHALLENGED", "UNRESOLVED"].includes(review.outcome) &&
+      !hasChallenge
+    ) {
+      throw new Error(
+        "Rival reviewer marked " +
+          review.claim_id +
+          " as " +
+          review.outcome +
+          " without a structured challenge.",
+      );
+    }
+
+    if (
+      ["SURVIVED_SCRUTINY", "NOT_APPLICABLE_TO_ROLE"].includes(
+        review.outcome,
+      ) &&
+      hasChallenge
+    ) {
+      throw new Error(
+        "Rival reviewer challenge ledger contradicts the claim-review outcome for " +
+          review.claim_id +
+          ".",
+      );
+    }
+  }
+
   const toolSources = extractWebSources(response);
   const trustedUrls = frozenSourceUrls(investigation.pre_redteam_snapshot);
 
@@ -408,6 +492,9 @@ export async function processRedTeamReviewResponse(
         rejectedEvidenceUrls: rejectedUrls,
         proposedClaimStatus: challenge.proposed_claim_status,
         rationale: challenge.rationale,
+        evidenceStrength: challenge.evidence_strength,
+        materiality: challenge.materiality,
+        selfFalsificationCondition: challenge.self_falsification_condition,
         unresolvedQuestions: challenge.unresolved_questions,
       },
       proposedClassification: challenge.proposed_classification,
@@ -419,6 +506,7 @@ export async function processRedTeamReviewResponse(
 
   const reviewOutput = {
     summary: output.summary,
+    claimReviews: output.claim_reviews,
     globalFindings: output.global_findings,
     createdChallengeIds,
     rejectedEvidenceUrls,
@@ -436,6 +524,10 @@ export async function processRedTeamReviewResponse(
     reviewId: job.redteam_review_id,
     jobId: job.id,
     challengeCount: createdChallengeIds.length,
+    claimReviewCount: output.claim_reviews.length,
+    survivedScrutinyCount: output.claim_reviews.filter(
+      (item) => item.outcome === "SURVIVED_SCRUTINY",
+    ).length,
     rejectedEvidenceUrls,
     toolSourceCount: toolSources.length,
   });
