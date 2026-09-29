@@ -509,6 +509,7 @@ export async function buildInvestigationState(
     retrieval_incomplete: number;
     provenance_incomplete: number;
     origin_unassessed: number;
+    origin_unresolved: number;
   }[]>`
     SELECT
       COUNT(*) FILTER (
@@ -528,7 +529,12 @@ export async function buildInvestigationState(
         WHERE screening_decision = 'INCLUDED'
           AND included_in_synthesis
           AND information_origin_status = 'UNASSESSED'
-      )::int AS origin_unassessed
+      )::int AS origin_unassessed,
+      COUNT(*) FILTER (
+        WHERE screening_decision = 'INCLUDED'
+          AND included_in_synthesis
+          AND information_origin_status = 'UNRESOLVED'
+      )::int AS origin_unresolved
     FROM sources
     WHERE investigation_id = ${investigationId}
   `;
@@ -570,6 +576,7 @@ export async function buildInvestigationState(
       sourceStats.source_count > 0 && sourceStats.provenance_incomplete === 0,
     sourceIndependenceAssessed:
       sourceStats.source_count > 0 && sourceStats.origin_unassessed === 0,
+    unresolvedInformationOrigin: sourceStats.origin_unresolved > 0,
     claimSynthesisComplete: Boolean(checkpoints.SYNTHESIS),
     preRedTeamFrozen: Boolean(investigation.pre_redteam_frozen_at),
     redTeamCompleted:
