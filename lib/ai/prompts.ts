@@ -576,6 +576,29 @@ methodology, data quality, independence, transparency, context, corrections, med
 authenticity, and adversarial resilience of the combined evidentiary system. Do not
 compute the numeric total yourself; Credify computes it server-side.
 
+RESEARCH SATURATION / STOP-CONDITION CONTRACT:
+- Return research_saturation after evaluating the whole evidentiary system.
+- CONVERGED means further reasonable searching is unlikely to change a material
+  conclusion AND there are no known material reasons to continue. Provide a concrete
+  convergence_basis; source count alone is never a convergence basis.
+- CONTINUE_REQUIRED means a material gap still warrants additional evidence work.
+  Use the matching reasons_to_continue code(s) and specify additional_searches_needed.
+- PROVISIONAL_STOP is allowed when continued searching has diminishing expected
+  value or practical access limits prevent closure, but residual_gaps must explicitly
+  preserve what remains uncertain. It is not equivalent to convergence.
+- Known missing required primary evidence must use
+  MISSING_REQUIRED_PRIMARY_EVIDENCE.
+- Known unresolved material claim conflict must use
+  UNRESOLVED_MATERIAL_CONFLICT.
+- Known unresolved information origin/provenance must use
+  UNRESOLVED_PROVENANCE_OR_ORIGIN.
+- Use the other enumerated reason codes when material statistics remain unreproduced,
+  citations remain unverified, global/linguistic coverage is materially incomplete,
+  source independence remains unresolved, or credible counterevidence remains
+  unresolved.
+- Never mark research CONVERGED merely because a target number of sources or searches
+  was reached. Stop on evidentiary convergence, not volume.
+
 Use UNKNOWN where the evidence does not permit a defensible conclusion. Do not
 force closure. Equal scrutiny does not require equal weight when evidence quality is
 asymmetric.
