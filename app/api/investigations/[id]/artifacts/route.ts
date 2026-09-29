@@ -20,6 +20,7 @@ import {
   putArtifactBytes,
 } from "@/lib/storage/artifacts";
 import { appendAuditEvent } from "@/lib/db/repository";
+import { extractArtifactMetadata } from "@/lib/artifacts/metadata";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,7 @@ export async function POST(
       );
     }
 
+    const extractedMetadata = await extractArtifactMetadata(mimeType, bytes);
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     const existing = await findArtifactBySha(id, sha256);
 
@@ -138,6 +140,14 @@ export async function POST(
         byteSize: bytes.byteLength,
         sha256,
         storageKey,
+        metadata: {
+          extraction: {
+            status: extractedMetadata.status,
+            parser: extractedMetadata.parser,
+            error: extractedMetadata.error,
+          },
+          values: extractedMetadata.metadata,
+        },
       });
 
       await appendAuditEvent(id, "ARTIFACT_UPLOADED", {
@@ -149,6 +159,10 @@ export async function POST(
         signatureReason: signature.reason,
         byteSize: bytes.byteLength,
         sha256,
+        metadataExtractionStatus: extractedMetadata.status,
+        metadataParser: extractedMetadata.parser,
+        metadataError: extractedMetadata.error,
+        metadataKeys: Object.keys(extractedMetadata.metadata),
       });
 
       return NextResponse.json({ artifact, duplicate: false }, { status: 201 });
