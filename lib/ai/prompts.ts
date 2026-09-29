@@ -297,6 +297,26 @@ ${isUrlSource ? `
   unresolved arrays empty, and do not invent a domain identity.
 `}
 
+SOURCE-INDEPENDENCE FINGERPRINT:
+- Return independence_fingerprint for dependency factors that could make this source
+  non-independent from another source even when the page URL differs.
+- wire_or_release.key: the canonical wire story, press release, syndicated report,
+  transcript, or common originating communication if established; otherwise empty.
+- datasets: underlying datasets materially relied on by this source.
+- authors: material authors/reporters/researchers whose repeated work could create
+  shared authorship dependence.
+- institutions: institutions materially responsible for producing the underlying
+  information, not merely websites that republished it.
+- funders: funders whose shared sponsorship is materially relevant to independence.
+- Use stable, specific keys (prefer canonical URL, DOI/accession/report identifier,
+  or unambiguous normalized name). Do not invent identifiers.
+- Every non-empty dependency key must carry at least one evidence_urls entry, and
+  every such URL must come from the web-search tool or the audited source URL.
+- If a factor cannot be supported, omit it from arrays; for wire_or_release return
+  an empty key and empty evidence_urls. Uncertainty belongs in notes.
+- Shared author/institution/funder does NOT automatically invalidate evidence; it is
+  a dependency signal for downstream independence analysis.
+
 Trace the source toward its true information origin. Set information_origin_url to
 the best verified canonical originating URL actually returned by web search and set
 information_origin_status to VERIFIED. If a serious search cannot establish the
