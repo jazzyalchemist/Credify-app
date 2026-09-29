@@ -25,6 +25,7 @@ const LABELS: Record<string, string> = {
   independent_corroboration: "Independent Corroboration",
   media_url_digital_forensics: "Media / URL / Digital Forensics",
   historical_cultural_context: "Historical & Cultural Context",
+  temporal_verification: "Temporal Verification",
   strongest_supporting_evidence: "Strongest Supporting Evidence",
   strongest_contrary_evidence: "Strongest Contrary Evidence",
   counter_hypothesis_test: "Counter-Hypothesis Test",
