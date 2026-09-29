@@ -231,6 +231,7 @@ ${JSON.stringify(
     primary_or_secondary: source.primary_or_secondary,
     provenance_status: source.provenance_status,
     information_origin_id: source.information_origin_id,
+    information_origin_status: source.information_origin_status,
     credibility_score: source.credibility_score,
   })),
 )}
