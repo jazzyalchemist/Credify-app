@@ -54,3 +54,30 @@ test("Crossref helper inspects both update-to and updated-by registry relationsh
   assert.match(source, /message\["updated-by"\]/);
   assert.match(source, /update\.type === "retraction"/);
 });
+
+
+test("Crossref registry captures deposited author ORCID affiliation and funder metadata", () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), "lib", "scholarly", "crossref.ts"),
+    "utf8",
+  );
+
+  assert.match(source, /export type CrossrefAuthor/);
+  assert.match(source, /orcid:/);
+  assert.match(source, /affiliations:/);
+  assert.match(source, /export type CrossrefFunder/);
+  assert.match(source, /awards:/);
+  assert.match(source, /message\.author/);
+  assert.match(source, /message\.funder/);
+});
+
+test("registered funders are preserved as disclosure evidence, not automatically classified as conflicts", () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), "lib", "ai", "page1-orchestrator.ts"),
+    "utf8",
+  );
+
+  assert.match(source, /Crossref deposited funder metadata/);
+  assert.match(source, /disclosure evidence, not proof of a conflict/i);
+  assert.match(source, /proof that no other funding\/conflict exists/i);
+});
