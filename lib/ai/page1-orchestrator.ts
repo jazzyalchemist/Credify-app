@@ -74,6 +74,26 @@ type SourceAuditOutput = {
   data_integrity_summary: string;
   historical_cultural_temporal_context: string;
   media_digital_authenticity_summary: string;
+  media_forensics: {
+    applicability: "NOT_APPLICABLE" | "IMAGE" | "PDF" | "OTHER_MEDIA";
+    metadata_status:
+      | "NOT_APPLICABLE"
+      | "NOT_PROVIDED"
+      | "PARTIAL"
+      | "AVAILABLE";
+    metadata_findings: string[];
+    visible_manipulation_indicators: string[];
+    context_mismatch_indicators: string[];
+    earliest_publication_finding: string;
+    geolocation_chronolocation_finding: string;
+    reverse_image_search_status:
+      | "NOT_APPLICABLE"
+      | "NOT_AVAILABLE_IN_CURRENT_TOOLING"
+      | "TEXTUAL_CORROBORATION_ONLY"
+      | "EXTERNALLY_VERIFIED";
+    reverse_image_search_finding: string;
+    unresolved_media_questions: string[];
+  };
   critical_failures: string[];
   evidence_urls: string[];
   dimension_scores: DimensionScores;
@@ -670,6 +690,7 @@ export async function processSourceAuditResponse(
       dataIntegrity: output.data_integrity_summary,
       context: output.historical_cultural_temporal_context,
       mediaAuthenticity: output.media_digital_authenticity_summary,
+      mediaForensics: output.media_forensics,
     },
     evidenceRefs: output.evidence_urls,
   });
