@@ -34,3 +34,26 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+
+      - name: Prepare tested source snapshot
+        if: success()
+        run: |
+          mkdir -p /tmp/credify-source
+          rsync -a \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.next' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            ./ /tmp/credify-source/
+          printf '%s\n' "$GITHUB_SHA" > /tmp/credify-source/TESTED_COMMIT_SHA
+
+      - name: Upload tested source snapshot
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: credify-tested-source
+          path: /tmp/credify-source
+          if-no-files-found: error
+          retention-days: 7
