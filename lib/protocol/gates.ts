@@ -54,8 +54,28 @@ export function canEnterPhase(
     }
   }
 
-  if (target === "PRE_REDTEAM" && !state.claimSynthesisComplete) {
-    blockers.push("Every material claim needs a first-pass synthesis.");
+  if (target === "PRE_REDTEAM") {
+    if (!state.claimSynthesisComplete) {
+      blockers.push("Every material claim needs a first-pass synthesis.");
+    }
+
+    if (state.researchSaturationStatus === "UNASSESSED") {
+      blockers.push(
+        "Research saturation must be assessed before the dossier can enter pre-RedTeam freeze.",
+      );
+    }
+
+    if (state.researchSaturationStatus === "CONTINUE_REQUIRED") {
+      blockers.push(
+        "Research saturation says CONTINUE_REQUIRED; material evidence gaps must be addressed before pre-RedTeam freeze.",
+      );
+    }
+
+    if (state.researchSaturationStatus === "PROVISIONAL_STOP") {
+      warnings.push(
+        "Research stopped provisionally with documented residual gaps; those limitations must remain visible through RedTeam and final reporting.",
+      );
+    }
   }
 
   if (target === "REDTEAM" && !state.preRedTeamFrozen) {
