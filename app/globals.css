@@ -2056,3 +2056,27 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+
+.citationChip {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 2px;
+  padding: 2px 6px;
+  border: 1px solid rgba(40, 95, 104, 0.2);
+  border-radius: 999px;
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  font: 700 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  vertical-align: baseline;
+}
+
+a.citationChip:hover {
+  border-color: rgba(40, 95, 104, 0.45);
+  text-decoration: underline;
+}
+
+.invalidCitation {
+  color: var(--danger);
+  background: var(--rose-soft);
+}
