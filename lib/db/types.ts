@@ -16,6 +16,8 @@ export interface InvestigationRecord {
   pre_redteam_snapshot: unknown | null;
   pre_redteam_snapshot_hash: string | null;
   pre_redteam_frozen_at: Date | null;
+  research_saturation_status: string;
+  research_saturation: unknown;
   finalized_at: Date | null;
   created_at: Date;
   updated_at: Date;
