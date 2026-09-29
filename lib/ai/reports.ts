@@ -406,13 +406,24 @@ OVERALL CREDIBILITY MATRIX:
   average of source scores, claim scores, confidence values, or reviewer votes.
 
 CITATION CONTRACT:
-- Every evidence-derived factual statement must cite the exact source ledger ID in
-  square brackets, for example [SRC-123].
-- Use only source IDs present in the INVESTIGATION RECORD.
-- Never invent a source ID or substitute a free-form URL for a source-ledger citation.
+- Every statement derived from the original audited evidence must cite the exact
+  source ledger ID in square brackets, for example [SRC-123].
+- Use only record IDs present in the INVESTIGATION RECORD.
+- Never invent a record ID or substitute a free-form URL for a validated record
+  citation.
 - Place citations immediately after the statement they support.
 - Unsupported or unresolved statements must be labeled as such rather than given a
   fabricated citation.
+- PRE_REDTEAM may use [SRC-...] only. [CHL-...] and [REC-...] records did not yet
+  exist and are forbidden.
+- FINAL may additionally cite [CHL-...] for an exact rival challenge/evidence bundle
+  and [REC-...] for the blind judge's disposition.
+- A rejected challenge is not supporting evidence. It may be cited only to describe
+  that the challenge was raised, and its [REC-...] adjudication must make the
+  rejection/disposition clear.
+- When a final conclusion relies on Page-2 evidence, cite the relevant [CHL-...] and
+  [REC-...] records; retain [SRC-...] citations for underlying Page-1 evidence when
+  applicable.
 
 MEDIA / DIGITAL FORENSICS REPORTING:
 - Build media_url_digital_forensics from the structured source-assessment
@@ -433,6 +444,8 @@ For PRE_REDTEAM:
 - do not anticipate or simulate RedTeam findings.
 
 For FINAL:
+- adversarial_validation must use exact [CHL-...] and [REC-...] citations when
+  describing material reviewer challenges and adjudications.
 - adversarial_validation must summarize what the independent reviewers challenged,
   what reconciliation upheld/rejected/left unresolved, and how claim wording or
   confidence changed.
