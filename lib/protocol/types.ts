@@ -45,6 +45,11 @@ export interface InvestigationState {
   sourceIndependenceAssessed: boolean;
   unresolvedInformationOrigin: boolean;
   claimSynthesisComplete: boolean;
+  researchSaturationStatus:
+    | "UNASSESSED"
+    | "CONVERGED"
+    | "PROVISIONAL_STOP"
+    | "CONTINUE_REQUIRED";
   preRedTeamFrozen: boolean;
   redTeamCompleted: boolean;
   reconciliationCompleted: boolean;
