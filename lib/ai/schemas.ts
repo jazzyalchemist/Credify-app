@@ -261,6 +261,62 @@ export const SOURCE_AUDIT_SCHEMA = {
     data_integrity_summary: { type: "string" },
     historical_cultural_temporal_context: { type: "string" },
     media_digital_authenticity_summary: { type: "string" },
+    media_forensics: {
+      type: "object",
+      properties: {
+        applicability: {
+          type: "string",
+          enum: ["NOT_APPLICABLE", "IMAGE", "PDF", "OTHER_MEDIA"],
+        },
+        metadata_status: {
+          type: "string",
+          enum: [
+            "NOT_APPLICABLE",
+            "NOT_PROVIDED",
+            "PARTIAL",
+            "AVAILABLE",
+          ],
+        },
+        metadata_findings: { type: "array", items: { type: "string" } },
+        visible_manipulation_indicators: {
+          type: "array",
+          items: { type: "string" },
+        },
+        context_mismatch_indicators: {
+          type: "array",
+          items: { type: "string" },
+        },
+        earliest_publication_finding: { type: "string" },
+        geolocation_chronolocation_finding: { type: "string" },
+        reverse_image_search_status: {
+          type: "string",
+          enum: [
+            "NOT_APPLICABLE",
+            "NOT_AVAILABLE_IN_CURRENT_TOOLING",
+            "TEXTUAL_CORROBORATION_ONLY",
+            "EXTERNALLY_VERIFIED",
+          ],
+        },
+        reverse_image_search_finding: { type: "string" },
+        unresolved_media_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "applicability",
+        "metadata_status",
+        "metadata_findings",
+        "visible_manipulation_indicators",
+        "context_mismatch_indicators",
+        "earliest_publication_finding",
+        "geolocation_chronolocation_finding",
+        "reverse_image_search_status",
+        "reverse_image_search_finding",
+        "unresolved_media_questions",
+      ],
+      additionalProperties: false,
+    },
     critical_failures: {
       type: "array",
       items: { type: "string" },
@@ -291,6 +347,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "data_integrity_summary",
     "historical_cultural_temporal_context",
     "media_digital_authenticity_summary",
+    "media_forensics",
     "critical_failures",
     "evidence_urls",
     "dimension_scores",
