@@ -2174,3 +2174,49 @@ a.citationChip:hover {
     grid-template-columns: 1fr;
   }
 }
+
+
+.artifactAuditGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.artifactAuditCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255,255,255,0.9);
+}
+
+.artifactAuditCard h3 {
+  margin: 4px 0 3px;
+  font-size: 13px;
+}
+
+.artifactAuditCard p,
+.artifactAuditCard span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.artifactAuditCard > div:nth-child(2) {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.artifactAuditCard code {
+  overflow-wrap: anywhere;
+  font-size: 8px;
+}
+
+@media (max-width: 760px) {
+  .artifactAuditCard {
+    grid-template-columns: 1fr;
+  }
+}
