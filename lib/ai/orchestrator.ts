@@ -309,7 +309,8 @@ export async function startDiscovery(investigationId: string) {
     throw new Error("Evidence discovery is only available during IDENTIFICATION.");
   }
 
-  const activeJobs = (await listAiJobs(investigationId)).filter((job) =>
+  const priorJobs = await listAiJobs(investigationId, 100);
+  const activeJobs = priorJobs.filter((job) =>
     ["QUEUED", "IN_PROGRESS", "PROCESSING"].includes(job.status),
   );
   if (activeJobs.length > 0) {
