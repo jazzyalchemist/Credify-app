@@ -859,8 +859,15 @@ export async function processReconciliationResponse(
   const investigation = await getInvestigation(job.investigation_id);
   if (!investigation) throw new Error("Investigation not found.");
 
-  const claims = await getClaims(job.investigation_id);
-  const challenges = await listChallenges(job.investigation_id);
+  const [claims, challenges, reviews, artifactContext] = await Promise.all([
+    getClaims(job.investigation_id),
+    listChallenges(job.investigation_id),
+    listRedTeamReviews(job.investigation_id),
+    loadFrozenArtifactContext(
+      job.investigation_id,
+      investigation.pre_redteam_snapshot,
+    ),
+  ]);
   const output = parseJson<ReconciliationOutput>(extractOutputText(response));
 
   assertExactCoverage(
@@ -881,6 +888,39 @@ export async function processReconciliationResponse(
 
   const toolSources = extractWebSources(response);
   const queries = extractWebQueries(response);
+  const codeInterpreterUsage = extractCodeInterpreterUsage(response);
+
+  const reviewerRoleById = new Map(
+    reviews.map((review) => [review.id, review.reviewer_role]),
+  );
+  const dataForensicsChallengeIds = new Set(
+    challenges
+      .filter(
+        (challenge) =>
+          reviewerRoleById.get(challenge.review_id) ===
+          "DATA_FIGURE_FORENSICS",
+      )
+      .map((challenge) => challenge.id),
+  );
+
+  const reproducedDataChallenges = output.adjudications.filter(
+    (item) =>
+      item.independently_reproduced &&
+      dataForensicsChallengeIds.has(item.challenge_id),
+  );
+
+  if (
+    artifactContext.hasTabularArtifacts &&
+    reproducedDataChallenges.length > 0 &&
+    (
+      codeInterpreterUsage.completedCallCount < 1 ||
+      codeInterpreterUsage.codePresentCallCount < 1
+    )
+  ) {
+    throw new Error(
+      "Reconciliation claimed independent reproduction of a data-forensics challenge without completed verifiable Python execution against the frozen tabular artifacts.",
+    );
+  }
 
   const trustedEvidenceRefs = frozenSourceRefs(
     investigation.pre_redteam_snapshot,
@@ -1078,6 +1118,14 @@ export async function processReconciliationResponse(
     },
     webQueries: queries,
     toolSources,
+    frozenArtifactHashes: artifactContext.hashes,
+    toolVerification: {
+      webSearchUsed: hasWebSearchCall(response),
+      codeInterpreter: codeInterpreterUsage,
+      reproducedDataChallengeIds: reproducedDataChallenges.map(
+        (item) => item.challenge_id,
+      ),
+    },
   };
 
   await appendAuditEvent(job.investigation_id, "BLIND_RECONCILIATION_COMPLETED", {
@@ -1089,6 +1137,10 @@ export async function processReconciliationResponse(
     finalInvestigationCriticalFailureCount:
       output.investigation_critical_failures.length,
     toolSourceCount: toolSources.length,
+    frozenArtifactCount: artifactContext.artifacts.length,
+    pythonCompletedCallCount: codeInterpreterUsage.completedCallCount,
+    independentlyReproducedDataChallengeCount:
+      reproducedDataChallenges.length,
   });
 
   return result;
