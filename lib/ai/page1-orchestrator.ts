@@ -111,6 +111,24 @@ type SourceAuditOutput = {
     unresolved_questions: string[];
   };
   historical_cultural_temporal_context: string;
+  temporal_verification: {
+    source_publication_date_finding: string;
+    source_last_update_finding: string;
+    evidence_time_period_finding: string;
+    current_applicability:
+      | "CURRENT"
+      | "HISTORICAL_ONLY"
+      | "PARTIAL"
+      | "UNKNOWN"
+      | "NOT_TIME_SENSITIVE";
+    staleness_risk:
+      | "NONE_IDENTIFIED"
+      | "LOW"
+      | "MATERIAL"
+      | "UNKNOWN"
+      | "NOT_APPLICABLE";
+    unresolved_temporal_questions: string[];
+  };
   url_forensics: {
     applicability: "NOT_APPLICABLE" | "URL_SOURCE";
     canonical_page_finding: string;
@@ -165,6 +183,17 @@ type SynthesisOutput = {
     additional_evidence_needed: string;
     unresolved_material_conflict: boolean;
     critical_failure: boolean;
+    temporal_alignment: {
+      claim_time_scope_finding: string;
+      evidence_time_scope_finding: string;
+      alignment:
+        | "ALIGNED"
+        | "PARTIAL"
+        | "MISALIGNED"
+        | "UNKNOWN"
+        | "NOT_TIME_SENSITIVE";
+      rationale: string;
+    };
     dimension_scores: DimensionScores;
   }>;
   investigation_dimension_scores: DimensionScores;
@@ -1047,6 +1076,7 @@ export async function processSourceAuditResponse(
         calls: codeInterpreterUsage.calls,
       },
       context: output.historical_cultural_temporal_context,
+      temporalVerification: output.temporal_verification,
       urlForensics: output.url_forensics,
       urlIdentityVerification: urlIdentity,
       mediaAuthenticity: output.media_digital_authenticity_summary,
@@ -1148,6 +1178,15 @@ export async function processSynthesisResponse(
   );
 
   for (const claimOutput of output.claims) {
+    if (
+      claimOutput.temporal_alignment.alignment === "MISALIGNED" &&
+      ["VERIFIED", "HIGH_CONFIDENCE"].includes(claimOutput.first_pass_status)
+    ) {
+      throw new Error(
+        "Synthesis cannot mark a temporally misaligned claim as VERIFIED or HIGH_CONFIDENCE.",
+      );
+    }
+
     const allRefs = [
       ...claimOutput.evidence_source_ids,
       ...claimOutput.counterevidence_source_ids,
@@ -1188,7 +1227,10 @@ export async function processSynthesisResponse(
       criticalFailures: claimOutput.critical_failure
         ? ["Claim-level critical failure identified during synthesis."]
         : [],
-      rationale: { reasoning: claimOutput.reasoning },
+      rationale: {
+        reasoning: claimOutput.reasoning,
+        temporalAlignment: claimOutput.temporal_alignment,
+      },
       evidenceRefs: [
         ...claimOutput.evidence_source_ids,
         ...claimOutput.counterevidence_source_ids,
