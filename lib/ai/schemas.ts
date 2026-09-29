@@ -750,6 +750,57 @@ export const SOURCE_AUDIT_SCHEMA = {
           ],
         },
         reverse_image_search_finding: { type: "string" },
+        visual_statistical_forensics: {
+          type: "object",
+          properties: {
+            applicability: {
+              type: "string",
+              enum: [
+                "NOT_APPLICABLE",
+                "CHART_OR_FIGURE_PRESENT",
+                "VISUAL_DATA_PRESENT_UNREADABLE",
+              ],
+            },
+            axis_scale_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            denominator_baseline_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            time_window_category_selection_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            annotation_label_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            visual_distortion_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            underlying_data_recovered: { type: "boolean" },
+            underlying_data_source: { type: "string" },
+            unresolved_visual_data_questions: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: [
+            "applicability",
+            "axis_scale_findings",
+            "denominator_baseline_findings",
+            "time_window_category_selection_findings",
+            "annotation_label_findings",
+            "visual_distortion_findings",
+            "underlying_data_recovered",
+            "underlying_data_source",
+            "unresolved_visual_data_questions",
+          ],
+          additionalProperties: false,
+        },
         unresolved_media_questions: {
           type: "array",
           items: { type: "string" },
@@ -765,6 +816,7 @@ export const SOURCE_AUDIT_SCHEMA = {
         "geolocation_chronolocation_finding",
         "reverse_image_search_status",
         "reverse_image_search_finding",
+        "visual_statistical_forensics",
         "unresolved_media_questions",
       ],
       additionalProperties: false,
