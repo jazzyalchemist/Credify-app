@@ -11,6 +11,7 @@ import {
   listArtifacts,
 } from "@/lib/db/artifacts";
 import {
+  artifactSignatureCheck,
   inferArtifactMime,
   safeArtifactFilename,
 } from "@/lib/artifacts/content";
@@ -88,6 +89,28 @@ export async function POST(
     }
 
     const bytes = new Uint8Array(await value.arrayBuffer());
+    const signature = artifactSignatureCheck(mimeType, bytes);
+
+    if (!signature.valid) {
+      await appendAuditEvent(id, "ARTIFACT_SIGNATURE_REJECTED", {
+        submittedFilename: filename,
+        submittedMime: value.type || null,
+        canonicalMime: mimeType,
+        byteSize: bytes.byteLength,
+        reason: signature.reason,
+      });
+
+      return NextResponse.json(
+        {
+          error:
+            "Artifact bytes do not match the expected file signature for " +
+            mimeType +
+            ".",
+        },
+        { status: 415 },
+      );
+    }
+
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     const existing = await findArtifactBySha(id, sha256);
 
@@ -120,7 +143,10 @@ export async function POST(
       await appendAuditEvent(id, "ARTIFACT_UPLOADED", {
         artifactId: artifact.id,
         filename,
-        mimeType,
+        submittedMime: value.type || null,
+        canonicalMime: mimeType,
+        signatureChecked: signature.checked,
+        signatureReason: signature.reason,
         byteSize: bytes.byteLength,
         sha256,
       });
