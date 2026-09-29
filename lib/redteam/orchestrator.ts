@@ -394,7 +394,14 @@ export async function startRedTeam(investigationId: string) {
         input: [
           {
             role: "system",
-            content: redTeamSystem(role.name, role.mission, canonicalProtocol),
+            content: redTeamSystem(
+              role.name,
+              role.mission,
+              role.rewardTarget,
+              role.falsePositivePenalty,
+              role.selfFalsificationPriority,
+              canonicalProtocol,
+            ),
           },
           {
             role: "user",
