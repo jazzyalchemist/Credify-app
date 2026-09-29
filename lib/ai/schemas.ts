@@ -336,6 +336,47 @@ export const SOURCE_AUDIT_SCHEMA = {
       additionalProperties: false,
     },
     historical_cultural_temporal_context: { type: "string" },
+    temporal_verification: {
+      type: "object",
+      properties: {
+        source_publication_date_finding: { type: "string" },
+        source_last_update_finding: { type: "string" },
+        evidence_time_period_finding: { type: "string" },
+        current_applicability: {
+          type: "string",
+          enum: [
+            "CURRENT",
+            "HISTORICAL_ONLY",
+            "PARTIAL",
+            "UNKNOWN",
+            "NOT_TIME_SENSITIVE",
+          ],
+        },
+        staleness_risk: {
+          type: "string",
+          enum: [
+            "NONE_IDENTIFIED",
+            "LOW",
+            "MATERIAL",
+            "UNKNOWN",
+            "NOT_APPLICABLE",
+          ],
+        },
+        unresolved_temporal_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "source_publication_date_finding",
+        "source_last_update_finding",
+        "evidence_time_period_finding",
+        "current_applicability",
+        "staleness_risk",
+        "unresolved_temporal_questions",
+      ],
+      additionalProperties: false,
+    },
     url_forensics: {
       type: "object",
       properties: {
@@ -458,6 +499,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "data_integrity_summary",
     "quantitative_forensics",
     "historical_cultural_temporal_context",
+    "temporal_verification",
     "url_forensics",
     "media_digital_authenticity_summary",
     "media_forensics",
@@ -506,6 +548,31 @@ export const SYNTHESIS_SCHEMA = {
           additional_evidence_needed: { type: "string" },
           unresolved_material_conflict: { type: "boolean" },
           critical_failure: { type: "boolean" },
+          temporal_alignment: {
+            type: "object",
+            properties: {
+              claim_time_scope_finding: { type: "string" },
+              evidence_time_scope_finding: { type: "string" },
+              alignment: {
+                type: "string",
+                enum: [
+                  "ALIGNED",
+                  "PARTIAL",
+                  "MISALIGNED",
+                  "UNKNOWN",
+                  "NOT_TIME_SENSITIVE",
+                ],
+              },
+              rationale: { type: "string" },
+            },
+            required: [
+              "claim_time_scope_finding",
+              "evidence_time_scope_finding",
+              "alignment",
+              "rationale",
+            ],
+            additionalProperties: false,
+          },
           dimension_scores: CREDIBILITY_DIMENSION_SCHEMA,
         },
         required: [
@@ -519,6 +586,7 @@ export const SYNTHESIS_SCHEMA = {
           "additional_evidence_needed",
           "unresolved_material_conflict",
           "critical_failure",
+          "temporal_alignment",
           "dimension_scores",
         ],
         additionalProperties: false,
