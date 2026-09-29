@@ -59,6 +59,7 @@ type SourceAuditOutput = {
   primary_or_secondary: "PRIMARY" | "SECONDARY" | "UNKNOWN";
   provenance_status: "VERIFIED" | "PARTIAL" | "FAILED";
   information_origin_url: string;
+  information_origin_status: "VERIFIED" | "UNRESOLVED";
   author: string;
   institution: string;
   author_expertise_summary: string;
@@ -614,6 +615,7 @@ export async function processSourceAuditResponse(
     correctionRetractionStatus: output.correction_retraction_status,
     fundingConflicts: output.funding_conflicts,
     informationOriginId: origin ? normalizeUrl(origin) : null,
+    informationOriginStatus: output.information_origin_status,
     credibilityScore: Number(assessment.total_score),
   });
 
@@ -635,6 +637,7 @@ export async function processSourceAuditResponse(
     criticalFailures: output.critical_failures,
     provenanceStatus: output.provenance_status,
     informationOriginId: origin ? normalizeUrl(origin) : null,
+    informationOriginStatus: output.information_origin_status,
     evidenceUrls: output.evidence_urls,
     webQueries: queries,
   };
