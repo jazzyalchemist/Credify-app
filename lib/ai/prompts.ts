@@ -171,8 +171,10 @@ methodology, data/statistics, funding/conflicts, transparency/reproducibility,
 historical/cultural/temporal context, and media/digital authenticity.
 
 Trace the source toward its true information origin. Set information_origin_url to
-the best verified canonical originating URL actually returned by web search. If the
-origin cannot be established, return an empty string; do not fabricate one.
+the best verified canonical originating URL actually returned by web search and set
+information_origin_status to VERIFIED. If a serious search cannot establish the
+origin, return an empty URL and set information_origin_status to UNRESOLVED. An
+unresolved origin is an honest audit outcome, not a reason to fabricate provenance.
 
 Every evidence_urls entry must be a URL actually returned by the web search tool.
 The source's existing URL may also be used if it is the object being audited.
