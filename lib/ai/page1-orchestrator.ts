@@ -72,6 +72,15 @@ type SourceAuditOutput = {
   methodology_summary: string;
   citation_integrity_summary: string;
   data_integrity_summary: string;
+  quantitative_forensics: {
+    applicability: "NOT_APPLICABLE" | "TABULAR_DATA";
+    calculations_performed: string[];
+    reported_figures_reproduced: string[];
+    reported_figures_not_reproduced: string[];
+    denominator_unit_population_checks: string[];
+    statistical_warnings: string[];
+    unresolved_questions: string[];
+  };
   historical_cultural_temporal_context: string;
   media_digital_authenticity_summary: string;
   media_forensics: {
@@ -687,6 +696,7 @@ export async function processSourceAuditResponse(
       methodology: output.methodology_summary,
       citationIntegrity: output.citation_integrity_summary,
       dataIntegrity: output.data_integrity_summary,
+      quantitativeForensics: output.quantitative_forensics,
       context: output.historical_cultural_temporal_context,
       mediaAuthenticity: output.media_digital_authenticity_summary,
       mediaForensics: output.media_forensics,
