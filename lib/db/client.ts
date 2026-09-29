@@ -5,11 +5,11 @@ type SqlClient = ReturnType<typeof postgres>;
 let client: SqlClient | null = null;
 
 export function db(): SqlClient {
-  const url = process.env.DATABASE_URL;
+  const url = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
 
   if (!url) {
     throw new Error(
-      "DATABASE_URL is not configured. Credify persistence is unavailable.",
+      "No Postgres connection is configured. Set DATABASE_URL locally or use Netlify Database in deployment.",
     );
   }
 
@@ -26,5 +26,5 @@ export function db(): SqlClient {
 }
 
 export function databaseConfigured(): boolean {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL);
 }
