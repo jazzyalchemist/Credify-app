@@ -6,6 +6,7 @@ import { ArtifactPanel } from "@/components/ArtifactPanel";
 import { AddClaimForm } from "@/components/AddClaimForm";
 import { AddSourceForm } from "@/components/AddSourceForm";
 import { ClaimAuditEditor } from "@/components/ClaimAuditEditor";
+import { FinalEvidenceTrace } from "@/components/FinalEvidenceTrace";
 import { Metric } from "@/components/Metric";
 import { InvestigationMatrixDelta } from "@/components/InvestigationMatrixDelta";
 import { PhaseRail } from "@/components/PhaseRail";
@@ -304,6 +305,7 @@ export default async function InvestigationPage({
                         {claim.final_rationale ? (
                           <p>{claim.final_rationale}</p>
                         ) : null}
+                        <FinalEvidenceTrace value={claim.final_evidence_trace} />
                       </div>
                     ) : null}
                     {investigation.current_phase === "SYNTHESIS" && !frozen ? (
