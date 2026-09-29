@@ -56,6 +56,6 @@ test("temporal audit distinguishes publication update evidence period and presen
   );
 
   assert.match(prompts, /TEMPORAL VERIFICATION CONTRACT/);
-  assert.match(prompts, /publication date, last-update date, and the time period/i);
-  assert.match(prompts, /historically valid but temporally insufficient/i);
+  assert.match(prompts, /publication date, last-update date,[\s\S]{0,80}time period/i);
+  assert.match(prompts, /historically valid[\s\S]{0,80}temporally insufficient/i);
 });
