@@ -294,7 +294,6 @@ export const SOURCE_AUDIT_SCHEMA = {
             "NOT_APPLICABLE",
             "NOT_AVAILABLE_IN_CURRENT_TOOLING",
             "TEXTUAL_CORROBORATION_ONLY",
-            "EXTERNALLY_VERIFIED",
           ],
         },
         reverse_image_search_finding: { type: "string" },
