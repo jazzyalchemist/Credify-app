@@ -95,6 +95,27 @@ type SourceAuditOutput = {
   institution: string;
   author_expertise_summary: string;
   institutional_analysis: string;
+  identity_affiliation_audit: {
+    authors: Array<{
+      name: string;
+      role_or_byline: string;
+      verified_credentials: string[];
+      unverified_credentials: string[];
+      verified_affiliations: string[];
+      registry_identifiers: string[];
+      evidence_urls: string[];
+    }>;
+    institution: {
+      name: string;
+      ownership_governance_finding: string;
+      mission_orientation_finding: string;
+      funding_relationships_finding: string;
+      editorial_or_research_independence_finding: string;
+      evidence_urls: string[];
+    };
+    potential_conflicts_or_incentives: string[];
+    unresolved_identity_questions: string[];
+  };
   source_ecosystem_audit: {
     category:
       | "SCHOLARLY"
@@ -1090,10 +1111,18 @@ export async function processSourceAuditResponse(
     (citation) => citation.evidence_urls,
   );
 
+  const identityEvidenceUrls = [
+    ...output.identity_affiliation_audit.authors.flatMap(
+      (author) => author.evidence_urls,
+    ),
+    ...output.identity_affiliation_audit.institution.evidence_urls,
+  ];
+
   const declaredEvidenceUrls = [
     ...output.evidence_urls,
     ...output.methodology_standards.standards_evidence_urls,
     ...citationEvidenceUrls,
+    ...identityEvidenceUrls,
   ];
 
   const rejectedEvidenceUrls = declaredEvidenceUrls.filter(
@@ -1181,6 +1210,7 @@ export async function processSourceAuditResponse(
       overall: output.overall_rationale,
       authorExpertise: output.author_expertise_summary,
       institutionalAnalysis: output.institutional_analysis,
+      identityAffiliationAudit: output.identity_affiliation_audit,
       sourceEcosystemAudit: output.source_ecosystem_audit,
       independenceFingerprint: validatedIndependenceFingerprint,
       methodology: output.methodology_summary,
@@ -1261,6 +1291,7 @@ export async function processSourceAuditResponse(
       reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
     },
     scholarlyRegistryVerification,
+    identityAffiliationAudit: output.identity_affiliation_audit,
     sourceEcosystemAudit: output.source_ecosystem_audit,
     quantitativeToolVerification: {
       required: quantitativeForensicsRequired,
