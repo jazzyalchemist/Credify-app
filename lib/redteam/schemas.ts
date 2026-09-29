@@ -1,4 +1,4 @@
-export const REDTEAM_REVIEW_SCHEMA = {
+import { CREDIBILITY_DIMENSION_SCHEMA } from "@/lib/ai/schemas";\n\nexport const REDTEAM_REVIEW_SCHEMA = {
   type: "object",
   properties: {
     summary: { type: "string" },
@@ -116,6 +116,12 @@ export const RECONCILIATION_SCHEMA = {
   type: "object",
   properties: {
     summary: { type: "string" },
+    investigation_dimension_scores: CREDIBILITY_DIMENSION_SCHEMA,
+    investigation_critical_failures: {
+      type: "array",
+      items: { type: "string" },
+    },
+    investigation_rationale: { type: "string" },
     adjudications: {
       type: "array",
       items: {
@@ -197,6 +203,13 @@ export const RECONCILIATION_SCHEMA = {
       },
     },
   },
-  required: ["summary", "adjudications", "final_claims"],
+  required: [
+    "summary",
+    "investigation_dimension_scores",
+    "investigation_critical_failures",
+    "investigation_rationale",
+    "adjudications",
+    "final_claims",
+  ],
   additionalProperties: false,
 } as const;
