@@ -955,6 +955,58 @@ export const SYNTHESIS_SCHEMA = {
       items: { type: "string" },
     },
     investigation_rationale: { type: "string" },
+    research_saturation: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: [
+            "CONVERGED",
+            "PROVISIONAL_STOP",
+            "CONTINUE_REQUIRED",
+          ],
+        },
+        convergence_basis: {
+          type: "array",
+          items: { type: "string" },
+        },
+        reasons_to_continue: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: [
+              "MISSING_REQUIRED_PRIMARY_EVIDENCE",
+              "UNRESOLVED_MATERIAL_CONFLICT",
+              "UNRESOLVED_PROVENANCE_OR_ORIGIN",
+              "UNREPRODUCED_MATERIAL_STATISTICS",
+              "MATERIAL_CITATION_UNVERIFIED",
+              "GLOBAL_OR_LINGUISTIC_COVERAGE_GAP",
+              "SOURCE_INDEPENDENCE_UNRESOLVED",
+              "MATERIAL_COUNTEREVIDENCE_UNRESOLVED",
+              "OTHER",
+            ],
+          },
+        },
+        residual_gaps: {
+          type: "array",
+          items: { type: "string" },
+        },
+        additional_searches_needed: {
+          type: "array",
+          items: { type: "string" },
+        },
+        stop_rationale: { type: "string" },
+      },
+      required: [
+        "status",
+        "convergence_basis",
+        "reasons_to_continue",
+        "residual_gaps",
+        "additional_searches_needed",
+        "stop_rationale",
+      ],
+      additionalProperties: false,
+    },
     executive_finding: { type: "string" },
     strongest_supporting_evidence: {
       type: "array",
@@ -978,6 +1030,7 @@ export const SYNTHESIS_SCHEMA = {
     "investigation_dimension_scores",
     "investigation_critical_failures",
     "investigation_rationale",
+    "research_saturation",
     "executive_finding",
     "strongest_supporting_evidence",
     "strongest_contrary_evidence",
