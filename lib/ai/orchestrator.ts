@@ -133,6 +133,14 @@ export async function startDecomposition(investigationId: string) {
   const requestPayload = {
     model,
     reasoning: { effort: "medium" },
+    tools: [
+      {
+        type: "web_search",
+        search_context_size: "high",
+      },
+    ],
+    tool_choice: "auto",
+    include: ["web_search_call.action.sources"],
     input: [
       {
         role: "system",
@@ -254,14 +262,35 @@ export async function startDiscovery(investigationId: string) {
 async function processDecomposition(
   investigationId: string,
   output: DecompositionOutput,
+  rawResponse: OpenAIResponse,
 ) {
+  const intakeSources = extractWebSources(rawResponse);
+  const queries = extractWebQueries(rawResponse);
   const existingClaims = await getClaims(investigationId);
+
+  async function logIntakeSearches(claimIds: string[]) {
+    for (const query of queries) {
+      await createSearchLog({
+        investigationId,
+        claimIds,
+        databaseOrPlatform: "OpenAI Responses web_search / Intake context",
+        queryExact: query,
+        resultCount: intakeSources.length,
+        notes:
+          "Context recovery used only to understand submitted material before claim decomposition. Results are not admitted evidence and must be rediscovered/audited downstream.",
+      });
+    }
+  }
+
   if (existingClaims.length > 0) {
+    await logIntakeSearches(existingClaims.map((claim) => claim.id));
     return {
       skipped: true,
       reason:
         "Claims were added while the decomposition job was running; AI output was preserved but not merged automatically.",
       decomposition: output,
+      webQueries: queries,
+      intakeContextSources: intakeSources,
     };
   }
 
@@ -275,18 +304,26 @@ async function processDecomposition(
     created.push({ id: record.id, whyMaterial: claim.why_material });
   }
 
+  await logIntakeSearches(created.map((claim) => claim.id));
+
   await appendAuditEvent(investigationId, "AI_CLAIM_DECOMPOSITION_APPLIED", {
     createdClaims: created,
     domain: output.domain,
     researchQuestions: output.research_questions,
     searchStrategy: output.search_strategy,
     knownAmbiguities: output.known_ambiguities,
+    webQueries: queries,
+    intakeContextSources: intakeSources,
+    intakeContextOnly: true,
   });
 
   return {
     skipped: false,
     createdClaims: created,
     decomposition: output,
+    webQueries: queries,
+    intakeContextSources: intakeSources,
+    intakeContextOnly: true,
   };
 }
 
@@ -450,6 +487,7 @@ export async function refreshAiJob(
       result = await processDecomposition(
         investigationId,
         parseJson<DecompositionOutput>(text),
+        response,
       );
     } else if (job.job_type === "DISCOVERY") {
       const claims = await getClaims(investigationId);
