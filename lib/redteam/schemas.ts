@@ -1,4 +1,6 @@
-import { CREDIBILITY_DIMENSION_SCHEMA } from "@/lib/ai/schemas";\n\nexport const REDTEAM_REVIEW_SCHEMA = {
+import { CREDIBILITY_DIMENSION_SCHEMA } from "@/lib/ai/schemas";
+
+export const REDTEAM_REVIEW_SCHEMA = {
   type: "object",
   properties: {
     summary: { type: "string" },
