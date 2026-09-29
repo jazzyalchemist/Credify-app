@@ -141,7 +141,7 @@ export async function getClaims(investigationId: string): Promise<ClaimRecord[]>
     SELECT *
     FROM claims
     WHERE investigation_id = ${investigationId}
-    ORDER BY created_at ASC
+    ORDER BY created_at ASC, id ASC
   `;
 }
 
@@ -188,7 +188,7 @@ export async function getSources(
     SELECT *
     FROM sources
     WHERE investigation_id = ${investigationId}
-    ORDER BY created_at ASC
+    ORDER BY created_at ASC, id ASC
   `;
 }
 
