@@ -1000,6 +1000,27 @@ export async function processSourceAuditResponse(
             : " | Crossref: no registered update returned at check time; this is not proof that no correction or concern exists.")
       : output.correction_retraction_status;
 
+  const registeredFunderSummary =
+    scholarlyRegistryVerification.status === "VERIFIED" &&
+    scholarlyRegistryVerification.funders.length > 0
+      ? scholarlyRegistryVerification.funders
+          .map((funder) => {
+            const awards =
+              funder.awards.length > 0
+                ? " [award(s): " + funder.awards.join(", ") + "]"
+                : "";
+            return funder.name + awards;
+          })
+          .join("; ")
+      : null;
+
+  const fundingConflictsStatus = registeredFunderSummary
+    ? output.funding_conflicts +
+      " | Crossref deposited funder metadata: " +
+      registeredFunderSummary +
+      ". Registry funding metadata is disclosure evidence, not proof of a conflict or proof that no other funding/conflict exists."
+    : output.funding_conflicts;
+
   const assessment = await upsertCredibilityAssessment({
     investigationId: job.investigation_id,
     subjectType: "SOURCE",
@@ -1048,7 +1069,7 @@ export async function processSourceAuditResponse(
     retrievalStatus: output.retrieval_status,
     peerReviewStatus: output.peer_review_status,
     correctionRetractionStatus,
-    fundingConflicts: output.funding_conflicts,
+    fundingConflicts: fundingConflictsStatus,
     informationOriginId: origin ? normalizeUrl(origin) : null,
     informationOriginStatus: output.information_origin_status,
     independenceFingerprint: validatedIndependenceFingerprint,
