@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { CitedReportText } from "@/components/CitedReportText";
 import { getInvestigation, getSources } from "@/lib/db/repository";
+import { listArtifacts } from "@/lib/db/artifacts";
 import { listReports } from "@/lib/db/reports";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +42,10 @@ export default async function ReportsPage({
   const investigation = await getInvestigation(id);
   if (!investigation) notFound();
 
-  const [reports, sources] = await Promise.all([
+  const [reports, sources, artifacts] = await Promise.all([
     listReports(id),
     getSources(id),
+    listArtifacts(id),
   ]);
 
   return (
@@ -124,6 +126,8 @@ export default async function ReportsPage({
                           <CitedReportText
                             text={String(value)}
                             sources={sources}
+                            artifacts={artifacts}
+                            investigationId={id}
                           />
                         </div>
                       </section>
