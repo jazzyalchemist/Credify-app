@@ -14,6 +14,7 @@ import {
   getAiJob,
   listAiJobs,
   updateAiJobStatus,
+  aiProcessingLeaseExpired,
 } from "@/lib/db/ai-jobs";
 import {
   createSearchLog,
@@ -390,7 +391,28 @@ export async function refreshAiJob(
   const job = await getAiJob(investigationId, jobId);
   if (!job) throw new Error("AI job not found.");
   if (job.status === "COMPLETED" || job.status === "FAILED") return job;
-  if (job.status === "PROCESSING") return job;
+
+  if (job.status === "PROCESSING") {
+    if (!aiProcessingLeaseExpired(job)) return job;
+
+    const message =
+      "AI job processing lease expired after 10 minutes. Credify failed the job rather than silently replaying potentially partially applied output.";
+    await failAiJob(job.id, message);
+    if (job.job_type === "REDTEAM_REVIEW") {
+      await markLinkedRedTeamJobFailed(job, message);
+    }
+    await appendAuditEvent(investigationId, "AI_JOB_PROCESSING_LEASE_EXPIRED", {
+      jobId: job.id,
+      jobType: job.job_type,
+      priorUpdatedAt: job.updated_at,
+      error: message,
+    });
+    return (await getAiJob(investigationId, job.id)) ?? {
+      ...job,
+      status: "FAILED" as const,
+      error: message,
+    };
+  }
 
   const response = await retrieveResponse(job.external_response_id);
 
