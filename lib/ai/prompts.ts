@@ -360,6 +360,16 @@ MEDIA FORENSICS CONTRACT:
   (TEXTUAL_CORROBORATION_ONLY). Never imply a reverse-image engine was used.
 - Geolocation/chronolocation findings must state the concrete visual or documentary
   basis and uncertainty. If not supportable, say so.
+- Always return visual_statistical_forensics. For charts/graphs/figures, inspect axis
+  scales and truncation, baselines, denominators, percent versus percentage-point
+  presentation, absolute versus relative framing, time-window/category selection,
+  annotations/labels, pictorial scaling, dual axes, omitted uncertainty, and other
+  visual choices that could materially distort interpretation.
+- If a chart's underlying data can be independently recovered from verified evidence,
+  name that source and distinguish visual-presentation findings from underlying-data
+  findings. Never claim the underlying data was recovered if it was not.
+- If visual data are present but too low-resolution/incomplete to inspect reliably,
+  use VISUAL_DATA_PRESENT_UNREADABLE and preserve the limitation.
 - Put unresolved metadata/origin/manipulation questions in
   unresolved_media_questions rather than inventing an answer.
 
