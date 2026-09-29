@@ -360,6 +360,10 @@ async function reportDataset(investigationId: string, stage: "PRE_REDTEAM" | "FI
       protocol_version: investigation.protocol_version,
       protocol_commit: investigation.protocol_commit,
       dossier_sha256: investigation.pre_redteam_snapshot_hash,
+      research_saturation_status:
+        investigation.research_saturation_status,
+      research_saturation:
+        investigation.research_saturation,
     },
     claims,
     sources,
@@ -393,6 +397,10 @@ Credify report from the structured investigation record below.
 
 Do not introduce new sources or facts. This reporting stage summarizes the audited
 record; it does not reopen evidence discovery.
+
+Preserve the recorded research-saturation decision explicitly: explain why research
+stopped, whether it CONVERGED or stopped PROVISIONALLY, and every residual reason to
+continue. Do not relabel PROVISIONAL_STOP as convergence.
 
 Preserve claim-level uncertainty. Distinguish source credibility score from claim
 confidence. The temporal_verification section must explicitly summarize source/claim
