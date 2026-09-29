@@ -13,6 +13,7 @@ import type {
 import { canEnterPhase } from "@/lib/protocol/gates";
 import { getLatestReport } from "./reports";
 import { rebuildEvidenceChains } from "./evidence";
+import { listArtifacts } from "./artifacts";
 import { canonicalJsonString } from "@/lib/crypto/canonical-json";
 
 export interface CreateInvestigationInput {
@@ -810,6 +811,7 @@ export async function freezePreRedTeamDossier(investigationId: string) {
     credibilityAssessments,
     searchLogs,
     retrievalLogs,
+    artifacts,
     aiJobs,
     auditEvents,
   ] = await Promise.all([
@@ -846,6 +848,7 @@ export async function freezePreRedTeamDossier(investigationId: string) {
       WHERE investigation_id = ${investigationId}
       ORDER BY attempted_at ASC, id ASC
     `,
+    listArtifacts(investigationId),
     sql`
       SELECT *
       FROM ai_jobs
@@ -888,6 +891,7 @@ export async function freezePreRedTeamDossier(investigationId: string) {
     credibilityAssessments,
     searchLogs,
     retrievalLogs,
+    artifacts,
     aiJobs,
     auditEventsBeforeFreeze: auditEvents,
     preRedTeamReport: {
@@ -938,6 +942,7 @@ export async function freezePreRedTeamDossier(investigationId: string) {
       evidenceChains: evidenceChains.length,
       searchLogs: searchLogs.length,
       retrievalLogs: retrievalLogs.length,
+      artifacts: artifacts.length,
       aiJobs: aiJobs.length,
       auditEventsBeforeFreeze: auditEvents.length,
     },
