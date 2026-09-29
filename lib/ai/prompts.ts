@@ -223,6 +223,26 @@ historical/cultural/temporal context, and media/digital authenticity.
 
 
 
+
+CITATION-INTEGRITY CONTRACT:
+- Always return citation_audit.
+- If the audited source contains citations/references that materially support its
+  claims, inspect representative and high-impact citations rather than assuming the
+  bibliography is valid because it exists.
+- For each examined citation, state the exact proposition being supported and
+  whether the cited work SUPPORTS, PARTIAL_SUPPORT, DOES_NOT_SUPPORT, CONTRADICTS,
+  or remains UNVERIFIED.
+- Distinguish primary from secondary citations and recover the primary source when
+  practical.
+- Check for quote drift, omitted qualifiers, citation laundering, circular
+  references, and downstream sources that all trace to one upstream claim.
+- Check correction/retraction status for cited works when material.
+- citation_audit.citations_examined[].evidence_urls must contain only URLs actually
+  returned by web search or the audited source URL.
+- If references are present but inaccessible, use CITATIONS_NOT_ACCESSIBLE and
+  preserve the limitation. Never fabricate a citation check.
+- If citation analysis is genuinely not applicable, use NOT_APPLICABLE.
+
 METHODOLOGICAL STANDARDS CONTRACT:
 - Always return methodology_standards before judging methodological quality.
 - Identify the actual source domain and source/study design first.
