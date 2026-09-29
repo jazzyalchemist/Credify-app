@@ -11,6 +11,7 @@ import {
   listEvidenceChains,
 } from "@/lib/db/evidence";
 import { listCredibilityAssessments } from "@/lib/db/credibility";
+import { listArtifacts } from "@/lib/db/artifacts";
 import {
   listChallenges,
   listReconciliations,
@@ -203,6 +204,7 @@ async function reportDataset(investigationId: string, stage: "PRE_REDTEAM" | "FI
     reviews,
     challenges,
     reconciliations,
+    artifacts,
   ] = await Promise.all([
     getClaims(investigationId),
     getSources(investigationId),
@@ -212,6 +214,7 @@ async function reportDataset(investigationId: string, stage: "PRE_REDTEAM" | "FI
     listRedTeamReviews(investigationId),
     listChallenges(investigationId),
     listReconciliations(investigationId),
+    listArtifacts(investigationId),
   ]);
 
   return {
@@ -229,6 +232,16 @@ async function reportDataset(investigationId: string, stage: "PRE_REDTEAM" | "FI
     assessments,
     claimSourceEdges: edges,
     evidenceChains: chains,
+    artifacts: artifacts.map((artifact) => ({
+      id: artifact.id,
+      source_id: artifact.source_id,
+      filename: artifact.original_filename,
+      mime_type: artifact.mime_type,
+      byte_size: Number(artifact.byte_size),
+      sha256: artifact.sha256,
+      capture_method: artifact.capture_method,
+      captured_at: artifact.captured_at,
+    })),
     redTeam:
       stage === "FINAL"
         ? { reviews, challenges, reconciliations }
