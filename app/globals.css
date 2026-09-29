@@ -2511,3 +2511,44 @@ a.citationChip:hover {
 #reconciliation {
   scroll-margin-top: 18px;
 }
+
+
+.incentiveLens {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #eceff1;
+}
+
+.incentiveLens summary {
+  cursor: pointer;
+  color: #586574;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+}
+
+.incentiveLens dl {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.incentiveLens dl div {
+  display: grid;
+  gap: 3px;
+}
+
+.incentiveLens dt {
+  color: #7a6a8e;
+  font-size: 8px;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.incentiveLens dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
