@@ -13,8 +13,23 @@ type Artifact = {
   byte_size: number | string;
   sha256: string;
   capture_method: string;
+  metadata: unknown;
   captured_at: string | Date;
 };
+
+function metadataExtractionStatus(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return "UNKNOWN";
+  }
+
+  const extraction = (value as Record<string, unknown>).extraction;
+  if (!extraction || typeof extraction !== "object" || Array.isArray(extraction)) {
+    return "UNKNOWN";
+  }
+
+  const status = (extraction as Record<string, unknown>).status;
+  return typeof status === "string" ? status : "UNKNOWN";
+}
 
 function formatBytes(value: number | string) {
   const bytes = Number(value);
@@ -135,6 +150,9 @@ export function ArtifactPanel({
                   Source ledger: {artifact.source_id ?? "not yet admitted"}
                 </span>
                 <span>Capture: {artifact.capture_method}</span>
+                <span>
+                  Metadata: {metadataExtractionStatus(artifact.metadata)}
+                </span>
                 <code title={artifact.sha256}>
                   SHA-256 {artifact.sha256.slice(0, 20)}…
                 </code>
