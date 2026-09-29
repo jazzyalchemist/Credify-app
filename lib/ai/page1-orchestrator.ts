@@ -231,7 +231,7 @@ function sourceUrlIdentity(value: string | null) {
 function canonicalDependencyKey(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
-  if (/^https?:\/\//i.test(trimmed)) return normalizeUrl(trimmed).toLowerCase();
+  if (/^https?:\/\//i.test(trimmed)) return normalizeUrl(trimmed);
   return trimmed.replace(/\s+/g, " ").toLowerCase();
 }
 
