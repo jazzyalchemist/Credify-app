@@ -99,6 +99,21 @@ type SourceAuditOutput = {
   correction_retraction_status: string;
   funding_conflicts: string;
   methodology_summary: string;
+  methodology_standards: {
+    source_domain: string;
+    source_design: string;
+    applicable_standards: Array<{
+      name: string;
+      why_applicable: string;
+    }>;
+    intentionally_inapplicable_standards: Array<{
+      name: string;
+      why_not_applicable: string;
+    }>;
+    standards_evidence_urls: string[];
+    application_summary: string;
+    unresolved_standards_questions: string[];
+  };
   citation_integrity_summary: string;
   data_integrity_summary: string;
   quantitative_forensics: {
@@ -976,7 +991,12 @@ export async function processSourceAuditResponse(
       trustedUrls,
     );
 
-  const rejectedEvidenceUrls = output.evidence_urls.filter(
+  const declaredEvidenceUrls = [
+    ...output.evidence_urls,
+    ...output.methodology_standards.standards_evidence_urls,
+  ];
+
+  const rejectedEvidenceUrls = declaredEvidenceUrls.filter(
     (url) => !trustedUrls.has(normalizeUrl(url)),
   );
   if (rejectedEvidenceUrls.length > 0) {
@@ -1063,6 +1083,7 @@ export async function processSourceAuditResponse(
       institutionalAnalysis: output.institutional_analysis,
       independenceFingerprint: validatedIndependenceFingerprint,
       methodology: output.methodology_summary,
+      methodologyStandards: output.methodology_standards,
       citationIntegrity: output.citation_integrity_summary,
       dataIntegrity: output.data_integrity_summary,
       quantitativeForensics: output.quantitative_forensics,
@@ -1088,7 +1109,7 @@ export async function processSourceAuditResponse(
       },
       scholarlyRegistryVerification,
     },
-    evidenceRefs: output.evidence_urls,
+    evidenceRefs: [...new Set(declaredEvidenceUrls)],
   });
 
   await updateSource(job.investigation_id, source.id, {
@@ -1127,6 +1148,7 @@ export async function processSourceAuditResponse(
     informationOriginStatus: output.information_origin_status,
     independenceFingerprint: validatedIndependenceFingerprint,
     evidenceUrls: output.evidence_urls,
+    methodologyStandards: output.methodology_standards,
     webQueries: queries,
     quantitativeForensics: output.quantitative_forensics,
     mediaForensics: output.media_forensics,
