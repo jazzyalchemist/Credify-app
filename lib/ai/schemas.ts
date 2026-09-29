@@ -286,6 +286,89 @@ export const SOURCE_AUDIT_SCHEMA = {
     institution: { type: "string" },
     author_expertise_summary: { type: "string" },
     institutional_analysis: { type: "string" },
+    identity_affiliation_audit: {
+      type: "object",
+      properties: {
+        authors: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              role_or_byline: { type: "string" },
+              verified_credentials: {
+                type: "array",
+                items: { type: "string" },
+              },
+              unverified_credentials: {
+                type: "array",
+                items: { type: "string" },
+              },
+              verified_affiliations: {
+                type: "array",
+                items: { type: "string" },
+              },
+              registry_identifiers: {
+                type: "array",
+                items: { type: "string" },
+              },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: [
+              "name",
+              "role_or_byline",
+              "verified_credentials",
+              "unverified_credentials",
+              "verified_affiliations",
+              "registry_identifiers",
+              "evidence_urls",
+            ],
+            additionalProperties: false,
+          },
+        },
+        institution: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            ownership_governance_finding: { type: "string" },
+            mission_orientation_finding: { type: "string" },
+            funding_relationships_finding: { type: "string" },
+            editorial_or_research_independence_finding: { type: "string" },
+            evidence_urls: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: [
+            "name",
+            "ownership_governance_finding",
+            "mission_orientation_finding",
+            "funding_relationships_finding",
+            "editorial_or_research_independence_finding",
+            "evidence_urls",
+          ],
+          additionalProperties: false,
+        },
+        potential_conflicts_or_incentives: {
+          type: "array",
+          items: { type: "string" },
+        },
+        unresolved_identity_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "authors",
+        "institution",
+        "potential_conflicts_or_incentives",
+        "unresolved_identity_questions",
+      ],
+      additionalProperties: false,
+    },
     source_ecosystem_audit: {
       type: "object",
       properties: {
@@ -709,6 +792,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "institution",
     "author_expertise_summary",
     "institutional_analysis",
+    "identity_affiliation_audit",
     "source_ecosystem_audit",
     "peer_review_status",
     "correction_retraction_status",
