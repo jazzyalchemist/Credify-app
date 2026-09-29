@@ -11,6 +11,16 @@ function privateResponse(response: NextResponse) {
   return response;
 }
 
+function isExplicitCrossSiteMutation(request: NextRequest) {
+  if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return false;
+
+  const origin = request.headers.get("origin");
+  if (origin && origin !== request.nextUrl.origin) return true;
+
+  const fetchSite = request.headers.get("sec-fetch-site");
+  return fetchSite === "cross-site";
+}
+
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
@@ -20,6 +30,19 @@ export async function middleware(request: NextRequest) {
 
   const token = request.cookies.get(sessionCookie.name)?.value;
   const authenticated = await verifySessionToken(token);
+
+  if (
+    authenticated &&
+    path.startsWith("/api/investigations") &&
+    isExplicitCrossSiteMutation(request)
+  ) {
+    return privateResponse(
+      NextResponse.json(
+        { error: "Cross-site mutation request rejected." },
+        { status: 403 },
+      ),
+    );
+  }
 
   if (authenticated) {
     return privateResponse(NextResponse.next());
