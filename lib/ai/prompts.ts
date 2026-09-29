@@ -224,6 +224,26 @@ historical/cultural/temporal context, and media/digital authenticity.
 
 
 
+
+SOURCE-ECOSYSTEM CONTRACT:
+- Always return source_ecosystem_audit and classify the source by its actual role,
+  not by whether you agree with it.
+- For NEWS, trace the upstream reporting chain and distinguish original reporting
+  from wire copy, press-release rewrite, syndicated coverage, commentary, and
+  aggregation.
+- For FACT_CHECK, do not import the outlet's verdict. Audit the exact claim it chose,
+  its methodology, source selection, omitted definitions/context, framing, and
+  correction practice. Set fact_check_audit.applicability to FACT_CHECK_SOURCE.
+- For MEDIA_BIAS_PLATFORM, treat the rating as a claim about another outlet, not as
+  an authority. Audit rating methodology, ownership/funding, rating scope, update
+  practices, and limitations. Set media_bias_platform_audit.applicability to
+  MEDIA_BIAS_PLATFORM.
+- For every other category, the two specialized applicability fields must be
+  NOT_APPLICABLE.
+- Editorial independence and correction-policy findings must be evidence-based;
+  affiliation, advocacy, government, corporate, or partisan identity is a context
+  signal rather than automatic invalidation.
+
 CITATION-INTEGRITY CONTRACT:
 - Always return citation_audit.
 - If the audited source contains citations/references that materially support its
