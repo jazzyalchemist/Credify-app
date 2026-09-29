@@ -17,7 +17,8 @@
     "react-dom": "^19.1.1",
     "zod": "^4.1.5",
     "@netlify/database": "latest",
-    "@netlify/blobs": "latest"
+    "@netlify/blobs": "latest",
+    "exifr": "^7.1.3"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
