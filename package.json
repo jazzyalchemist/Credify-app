@@ -15,7 +15,8 @@
     "postgres": "^3.4.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "zod": "^4.1.5"
+    "zod": "^4.1.5",
+    "@netlify/database": "latest"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
