@@ -95,6 +95,37 @@ type SourceAuditOutput = {
   institution: string;
   author_expertise_summary: string;
   institutional_analysis: string;
+  source_ecosystem_audit: {
+    category:
+      | "SCHOLARLY"
+      | "NEWS"
+      | "FACT_CHECK"
+      | "MEDIA_BIAS_PLATFORM"
+      | "GOVERNMENT"
+      | "PUBLIC_RECORD"
+      | "ADVOCACY"
+      | "CORPORATE"
+      | "PERSONAL_OR_SOCIAL"
+      | "OTHER";
+    editorial_independence_finding: string;
+    upstream_reporting_chain_finding: string;
+    correction_policy_finding: string;
+    fact_check_audit: {
+      applicability: "NOT_APPLICABLE" | "FACT_CHECK_SOURCE";
+      exact_claim_checked: string;
+      methodology_finding: string;
+      evidence_selection_finding: string;
+      framing_or_omission_concerns: string[];
+      unresolved_questions: string[];
+    };
+    media_bias_platform_audit: {
+      applicability: "NOT_APPLICABLE" | "MEDIA_BIAS_PLATFORM";
+      methodology_finding: string;
+      ownership_funding_finding: string;
+      rating_scope_limitations: string[];
+      unresolved_questions: string[];
+    };
+  };
   peer_review_status: string;
   correction_retraction_status: string;
   funding_conflicts: string;
@@ -993,6 +1024,45 @@ export async function processSourceAuditResponse(
     );
   }
 
+  const ecosystem = output.source_ecosystem_audit;
+
+  if (
+    ecosystem.category === "FACT_CHECK" &&
+    ecosystem.fact_check_audit.applicability !== "FACT_CHECK_SOURCE"
+  ) {
+    throw new Error(
+      "Source classified as FACT_CHECK did not provide the required fact-check methodology audit.",
+    );
+  }
+
+  if (
+    ecosystem.category !== "FACT_CHECK" &&
+    ecosystem.fact_check_audit.applicability !== "NOT_APPLICABLE"
+  ) {
+    throw new Error(
+      "Non-fact-check source incorrectly claimed fact-check audit applicability.",
+    );
+  }
+
+  if (
+    ecosystem.category === "MEDIA_BIAS_PLATFORM" &&
+    ecosystem.media_bias_platform_audit.applicability !==
+      "MEDIA_BIAS_PLATFORM"
+  ) {
+    throw new Error(
+      "Source classified as MEDIA_BIAS_PLATFORM did not provide the required platform-methodology audit.",
+    );
+  }
+
+  if (
+    ecosystem.category !== "MEDIA_BIAS_PLATFORM" &&
+    ecosystem.media_bias_platform_audit.applicability !== "NOT_APPLICABLE"
+  ) {
+    throw new Error(
+      "Non-media-bias source incorrectly claimed media-bias-platform audit applicability.",
+    );
+  }
+
   if (output.source_id !== source.id) {
     throw new Error(
       "Source audit returned the wrong source ID: " + output.source_id + ".",
@@ -1111,6 +1181,7 @@ export async function processSourceAuditResponse(
       overall: output.overall_rationale,
       authorExpertise: output.author_expertise_summary,
       institutionalAnalysis: output.institutional_analysis,
+      sourceEcosystemAudit: output.source_ecosystem_audit,
       independenceFingerprint: validatedIndependenceFingerprint,
       methodology: output.methodology_summary,
       methodologyStandards: output.methodology_standards,
@@ -1190,6 +1261,7 @@ export async function processSourceAuditResponse(
       reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
     },
     scholarlyRegistryVerification,
+    sourceEcosystemAudit: output.source_ecosystem_audit,
     quantitativeToolVerification: {
       required: quantitativeForensicsRequired,
       used: codeInterpreterUsage.used,
