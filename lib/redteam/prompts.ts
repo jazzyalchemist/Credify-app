@@ -174,5 +174,11 @@ Requirements:
   actually returned by your own web search. Do not invent free-form evidence labels.
 - Revised confidence must reflect surviving evidence and unresolved uncertainty,
   not reviewer vote totals.
+- Return investigation_dimension_scores, investigation_critical_failures, and
+  investigation_rationale for the final evidentiary system AFTER adjudication.
+- The final investigation matrix is not an average of reviewers, sources, claim
+  confidence, or the Page-1 matrix. Reassess all 12 dimensions from evidence that
+  survives reconciliation. Do not compute the numeric total; Credify does so
+  server-side.
 `.trim();
 }
