@@ -35,16 +35,23 @@ test("tool-call verification detects actual web and Python execution", () => {
         type: "code_interpreter_call",
         id: "ci-1",
         container_id: "cntr-1",
+        status: "completed",
+        code: "import pandas as pd\nprint(2 + 2)",
       },
     ],
   };
 
   assert.equal(hasWebSearchCall(response), true);
-  assert.deepEqual(extractCodeInterpreterUsage(response), {
-    used: true,
-    callCount: 1,
-    containerIds: ["cntr-1"],
-  });
+  const usage = extractCodeInterpreterUsage(response);
+  assert.equal(usage.used, true);
+  assert.equal(usage.callCount, 1);
+  assert.equal(usage.completedCallCount, 1);
+  assert.equal(usage.codePresentCallCount, 1);
+  assert.deepEqual(usage.containerIds, ["cntr-1"]);
+  assert.equal(usage.calls.length, 1);
+  assert.equal(usage.calls[0].status, "completed");
+  assert.match(usage.calls[0].code ?? "", /pandas/);
+  assert.match(usage.calls[0].codeSha256 ?? "", /^[a-f0-9]{64}$/);
 });
 
 test("source audits conditionally expose Code Interpreter for tabular data", () => {
@@ -56,7 +63,7 @@ test("source audits conditionally expose Code Interpreter for tabular data", () 
   assert.match(source, /artifactNeedsQuantitativeForensics/);
   assert.match(source, /type:\s*"code_interpreter"/);
   assert.match(source, /container:\s*\{\s*type:\s*"auto"\s*\}/);
-  assert.match(source, /Tabular-data source audit did not execute the required Python/);
+  assert.match(source, /did not complete a verifiable Python recomputation step/);
   assert.match(source, /Source audit did not execute the required independent web-search step/);
 });
 
@@ -80,4 +87,7 @@ test("quantitative findings and verified tool use are persisted separately", () 
   assert.match(source, /quantitativeForensics:\s*output\.quantitative_forensics/);
   assert.match(source, /quantitativeToolVerification/);
   assert.match(source, /callCount:\s*codeInterpreterUsage\.callCount/);
+  assert.match(source, /completedCallCount/);
+  assert.match(source, /codePresentCallCount/);
+  assert.match(source, /calls:\s*codeInterpreterUsage\.calls/);
 });
