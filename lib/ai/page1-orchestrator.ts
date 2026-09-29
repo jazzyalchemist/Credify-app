@@ -22,9 +22,11 @@ import {
 } from "@/lib/db/credibility";
 import {
   createBackgroundResponse,
+  extractCodeInterpreterUsage,
   extractOutputText,
   extractWebQueries,
   extractWebSources,
+  hasWebSearchCall,
   researchModel,
   type OpenAIResponse,
 } from "./openai";
@@ -41,8 +43,13 @@ import {
 } from "./schemas";
 import { loadCanonicalInitialProtocol } from "@/lib/protocol/canonical";
 import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
-import { ensureArtifactSources, listArtifacts } from "@/lib/db/artifacts";
+import {
+  ensureArtifactSources,
+  getArtifactBySourceId,
+  listArtifacts,
+} from "@/lib/db/artifacts";
 import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
+import { artifactNeedsQuantitativeForensics } from "@/lib/artifacts/content";
 
 type ScreeningOutput = {
   decisions: Array<{
@@ -415,6 +422,10 @@ export async function startSourceAudits(
         ...(artifactPart ? [artifactPart] : []),
       ];
 
+      const quantitativeForensicsRequired = Boolean(
+        artifact && artifactNeedsQuantitativeForensics(artifact.mime_type),
+      );
+
       const requestPayload = {
         model,
         reasoning: { effort: "high" },
@@ -423,8 +434,16 @@ export async function startSourceAudits(
             type: "web_search",
             search_context_size: "high",
           },
+          ...(quantitativeForensicsRequired
+            ? [
+                {
+                  type: "code_interpreter",
+                  container: { type: "auto" },
+                },
+              ]
+            : []),
         ],
-        tool_choice: artifact ? "auto" : "required",
+        tool_choice: "required",
         include: ["web_search_call.action.sources"],
         input: [
           {
@@ -459,6 +478,7 @@ export async function startSourceAudits(
           sourceId: source.id,
           artifactId: artifact?.id ?? null,
           artifactSha256: artifact?.sha256 ?? null,
+          quantitativeForensicsRequired,
         },
         subjectId: source.id,
       });
@@ -648,6 +668,45 @@ export async function processSourceAuditResponse(
   if (!source) throw new Error("Source-audit subject no longer exists.");
 
   const output = parseJson<SourceAuditOutput>(extractOutputText(response));
+  const artifact = await getArtifactBySourceId(
+    job.investigation_id,
+    source.id,
+  );
+  const quantitativeForensicsRequired = Boolean(
+    artifact && artifactNeedsQuantitativeForensics(artifact.mime_type),
+  );
+  const codeInterpreterUsage = extractCodeInterpreterUsage(response);
+
+  if (!hasWebSearchCall(response)) {
+    throw new Error(
+      "Source audit did not execute the required independent web-search step.",
+    );
+  }
+
+  if (quantitativeForensicsRequired && !codeInterpreterUsage.used) {
+    throw new Error(
+      "Tabular-data source audit did not execute the required Python recomputation step.",
+    );
+  }
+
+  if (
+    quantitativeForensicsRequired &&
+    output.quantitative_forensics.applicability !== "TABULAR_DATA"
+  ) {
+    throw new Error(
+      "Tabular-data source audit did not return TABULAR_DATA quantitative forensics.",
+    );
+  }
+
+  if (
+    !quantitativeForensicsRequired &&
+    output.quantitative_forensics.applicability !== "NOT_APPLICABLE"
+  ) {
+    throw new Error(
+      "Non-tabular source audit incorrectly claimed quantitative-data applicability.",
+    );
+  }
+
   if (output.source_id !== source.id) {
     throw new Error(
       "Source audit returned the wrong source ID: " + output.source_id + ".",
@@ -697,6 +756,12 @@ export async function processSourceAuditResponse(
       citationIntegrity: output.citation_integrity_summary,
       dataIntegrity: output.data_integrity_summary,
       quantitativeForensics: output.quantitative_forensics,
+      quantitativeToolVerification: {
+        required: quantitativeForensicsRequired,
+        used: codeInterpreterUsage.used,
+        callCount: codeInterpreterUsage.callCount,
+        containerIds: codeInterpreterUsage.containerIds,
+      },
       context: output.historical_cultural_temporal_context,
       mediaAuthenticity: output.media_digital_authenticity_summary,
       mediaForensics: output.media_forensics,
@@ -739,6 +804,13 @@ export async function processSourceAuditResponse(
     informationOriginStatus: output.information_origin_status,
     evidenceUrls: output.evidence_urls,
     webQueries: queries,
+    quantitativeForensics: output.quantitative_forensics,
+    quantitativeToolVerification: {
+      required: quantitativeForensicsRequired,
+      used: codeInterpreterUsage.used,
+      callCount: codeInterpreterUsage.callCount,
+      containerIds: codeInterpreterUsage.containerIds,
+    },
   };
 
   await appendAuditEvent(job.investigation_id, "SOURCE_CREDIBILITY_AUDIT_APPLIED", {
