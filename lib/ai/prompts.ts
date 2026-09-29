@@ -1,4 +1,5 @@
 import type { ArtifactRecord } from "@/lib/db/artifacts";
+import { artifactNeedsQuantitativeForensics } from "@/lib/artifacts/content";
 import type {
   ClaimRecord,
   InvestigationRecord,
@@ -237,6 +238,33 @@ MEDIA FORENSICS CONTRACT:
   basis and uncertainty. If not supportable, say so.
 - Put unresolved metadata/origin/manipulation questions in
   unresolved_media_questions rather than inventing an answer.
+
+QUANTITATIVE FORENSICS CONTRACT:
+${artifact && artifactNeedsQuantitativeForensics(artifact.mime_type) ? `
+- This source is tabular/spreadsheet data. Set quantitative_forensics.applicability
+  to TABULAR_DATA.
+- You MUST use the python tool on the attached file. A prose-only inspection is
+  insufficient.
+- Inspect sheet/table structure, dimensions, missing values, data types, units,
+  date ranges, categories, populations, denominators, duplicate rows, and material
+  exclusions where they can be established.
+- Recompute material totals, percentages, rates, changes, averages, and other
+  reported figures when feasible. Record the calculation/reproduction result in the
+  structured quantitative_forensics fields.
+- Explicitly check percent versus percentage-point changes, absolute versus relative
+  risk/change, nominal versus real values when relevant, per-capita versus totals,
+  cumulative versus period values, denominator changes, weighting, filtering, and
+  cherry-picked date windows.
+- Do not claim a figure was reproduced unless the Python execution actually
+  recalculated it from the attached data. If a reported figure cannot be reproduced,
+  place it in reported_figures_not_reproduced with the concrete reason.
+- Treat formulas, labels, and supplied datasets as evidence to audit, not as trusted
+  ground truth. Preserve unresolved methodological or data-definition questions.
+` : `
+- This source is not a tabular-data artifact. Set
+  quantitative_forensics.applicability to NOT_APPLICABLE and return empty arrays
+  for its remaining fields. Do not imply that Python/data recomputation occurred.
+`}
 
 Trace the source toward its true information origin. Set information_origin_url to
 the best verified canonical originating URL actually returned by web search and set
