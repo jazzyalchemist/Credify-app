@@ -68,14 +68,14 @@ export function buildArtifactInputPart(
 
   if (artifactIsImage(artifact.mime_type)) {
     return {
-      type: "input_image",
+      type: "input_image" as const,
       image_url: dataUrl,
       detail: "high",
     };
   }
 
   return {
-    type: "input_file",
+    type: "input_file" as const,
     filename: artifact.original_filename,
     file_data: dataUrl,
     ...(artifact.mime_type === "application/pdf"
