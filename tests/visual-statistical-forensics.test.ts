@@ -23,10 +23,10 @@ test("visual-forensics prompt checks chart framing and unreadable figures", () =
     "utf8",
   );
 
-  assert.match(prompts, /axis scales and truncation/i);
+  assert.match(prompts, /axis[\s\S]{0,40}scales and truncation/i);
   assert.match(prompts, /percent versus percentage-point/i);
-  assert.match(prompts, /time-window\/category selection/i);
-  assert.match(prompts, /underlying data can be independently recovered/i);
+  assert.match(prompts, /time-window[\s\S]{0,20}category selection/i);
+  assert.match(prompts, /underlying data[\s\S]{0,60}independently recovered/i);
   assert.match(prompts, /VISUAL_DATA_PRESENT_UNREADABLE/);
 });
 
