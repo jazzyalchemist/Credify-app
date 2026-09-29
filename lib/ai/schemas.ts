@@ -1,0 +1,1309 @@
+export const DECOMPOSITION_SCHEMA = {
+  type: "object",
+  properties: {
+    domain: {
+      type: "string",
+      enum: [
+        "ACADEMIC",
+        "NEWS",
+        "HISTORICAL",
+        "MEDIA",
+        "CORPORATE",
+        "OSINT",
+        "MIXED",
+      ],
+    },
+    research_questions: {
+      type: "array",
+      items: { type: "string" },
+    },
+    claims: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          text: { type: "string" },
+          claim_type: {
+            type: "string",
+            enum: [
+              "FACTUAL",
+              "STATISTICAL",
+              "CAUSAL",
+              "HISTORICAL",
+              "INTERPRETIVE",
+              "ALLEGATION",
+              "OPINION",
+            ],
+          },
+          requires_primary_evidence: { type: "boolean" },
+          why_material: { type: "string" },
+        },
+        required: [
+          "text",
+          "claim_type",
+          "requires_primary_evidence",
+          "why_material",
+        ],
+        additionalProperties: false,
+      },
+    },
+    search_strategy: {
+      type: "object",
+      properties: {
+        languages: { type: "array", items: { type: "string" } },
+        jurisdictions: { type: "array", items: { type: "string" } },
+        evidence_streams: { type: "array", items: { type: "string" } },
+        opposing_queries: { type: "array", items: { type: "string" } },
+      },
+      required: [
+        "languages",
+        "jurisdictions",
+        "evidence_streams",
+        "opposing_queries",
+      ],
+      additionalProperties: false,
+    },
+    known_ambiguities: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: [
+    "domain",
+    "research_questions",
+    "claims",
+    "search_strategy",
+    "known_ambiguities",
+  ],
+  additionalProperties: false,
+} as const;
+
+export const DISCOVERY_SCHEMA = {
+  type: "object",
+  properties: {
+    research_summary: { type: "string" },
+    selected_sources: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          url: { type: "string" },
+          title: { type: "string" },
+          source_type: {
+            type: "string",
+            enum: [
+              "ACADEMIC",
+              "DATASET",
+              "NEWS",
+              "ARCHIVE",
+              "OFFICIAL",
+              "WEB",
+              "MEDIA",
+            ],
+          },
+          primary_or_secondary: {
+            type: "string",
+            enum: ["PRIMARY", "SECONDARY", "UNKNOWN"],
+          },
+          claim_ids: {
+            type: "array",
+            items: { type: "string" },
+          },
+          evidence_role: {
+            type: "string",
+            enum: ["SUPPORTS", "CONTRADICTS", "CONTEXT", "PROVENANCE"],
+          },
+          selection_rationale: { type: "string" },
+        },
+        required: [
+          "url",
+          "title",
+          "source_type",
+          "primary_or_secondary",
+          "claim_ids",
+          "evidence_role",
+          "selection_rationale",
+        ],
+        additionalProperties: false,
+      },
+    },
+    contrary_evidence_sought: {
+      type: "array",
+      items: { type: "string" },
+    },
+    coverage_gaps: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: [
+    "research_summary",
+    "selected_sources",
+    "contrary_evidence_sought",
+    "coverage_gaps",
+  ],
+  additionalProperties: false,
+} as const;
+
+
+const dimensionScore = (max: number) => ({
+  type: "object",
+  properties: {
+    score: { type: "number", minimum: 0, maximum: max },
+    rationale: { type: "string" },
+  },
+  required: ["score", "rationale"],
+  additionalProperties: false,
+});
+
+export const CREDIBILITY_DIMENSION_SCHEMA = {
+  type: "object",
+  properties: {
+    provenance_traceability: dimensionScore(12),
+    author_expertise: dimensionScore(8),
+    methodological_quality: dimensionScore(12),
+    citation_integrity: dimensionScore(10),
+    data_integrity: dimensionScore(10),
+    independent_corroboration: dimensionScore(10),
+    funding_conflicts: dimensionScore(8),
+    transparency_reproducibility: dimensionScore(8),
+    historical_cultural_temporal_context: dimensionScore(7),
+    media_digital_authenticity: dimensionScore(5),
+    corrections_research_integrity: dimensionScore(5),
+    adversarial_resilience: dimensionScore(5),
+  },
+  required: [
+    "provenance_traceability",
+    "author_expertise",
+    "methodological_quality",
+    "citation_integrity",
+    "data_integrity",
+    "independent_corroboration",
+    "funding_conflicts",
+    "transparency_reproducibility",
+    "historical_cultural_temporal_context",
+    "media_digital_authenticity",
+    "corrections_research_integrity",
+    "adversarial_resilience",
+  ],
+  additionalProperties: false,
+} as const;
+
+export const SCREENING_SCHEMA = {
+  type: "object",
+  properties: {
+    decisions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          source_id: { type: "string" },
+          decision: {
+            type: "string",
+            enum: ["INCLUDED", "EXCLUDED"],
+          },
+          reason: { type: "string" },
+          potential_duplicate_of_source_id: { type: "string" },
+        },
+        required: [
+          "source_id",
+          "decision",
+          "reason",
+          "potential_duplicate_of_source_id",
+        ],
+        additionalProperties: false,
+      },
+    },
+    screening_summary: { type: "string" },
+    unresolved_retrieval_questions: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: [
+    "decisions",
+    "screening_summary",
+    "unresolved_retrieval_questions",
+  ],
+  additionalProperties: false,
+} as const;
+
+const dependencyEvidence = {
+  type: "object",
+  properties: {
+    key: { type: "string" },
+    evidence_urls: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: ["key", "evidence_urls"],
+  additionalProperties: false,
+} as const;
+
+export const SOURCE_AUDIT_SCHEMA = {
+  type: "object",
+  properties: {
+    source_id: { type: "string" },
+    retrieval_status: {
+      type: "string",
+      enum: ["RETRIEVED", "PARTIAL", "NOT_RETRIEVED"],
+    },
+    primary_or_secondary: {
+      type: "string",
+      enum: ["PRIMARY", "SECONDARY", "UNKNOWN"],
+    },
+    provenance_status: {
+      type: "string",
+      enum: ["VERIFIED", "PARTIAL", "FAILED"],
+    },
+    information_origin_url: { type: "string" },
+    information_origin_status: {
+      type: "string",
+      enum: ["VERIFIED", "UNRESOLVED"],
+    },
+    independence_fingerprint: {
+      type: "object",
+      properties: {
+        wire_or_release: dependencyEvidence,
+        datasets: { type: "array", items: dependencyEvidence },
+        authors: { type: "array", items: dependencyEvidence },
+        institutions: { type: "array", items: dependencyEvidence },
+        funders: { type: "array", items: dependencyEvidence },
+        notes: { type: "array", items: { type: "string" } },
+      },
+      required: [
+        "wire_or_release",
+        "datasets",
+        "authors",
+        "institutions",
+        "funders",
+        "notes",
+      ],
+      additionalProperties: false,
+    },
+    author: { type: "string" },
+    institution: { type: "string" },
+    author_expertise_summary: { type: "string" },
+    institutional_analysis: { type: "string" },
+    identity_affiliation_audit: {
+      type: "object",
+      properties: {
+        authors: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              role_or_byline: { type: "string" },
+              verified_credentials: {
+                type: "array",
+                items: { type: "string" },
+              },
+              unverified_credentials: {
+                type: "array",
+                items: { type: "string" },
+              },
+              verified_affiliations: {
+                type: "array",
+                items: { type: "string" },
+              },
+              registry_identifiers: {
+                type: "array",
+                items: { type: "string" },
+              },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: [
+              "name",
+              "role_or_byline",
+              "verified_credentials",
+              "unverified_credentials",
+              "verified_affiliations",
+              "registry_identifiers",
+              "evidence_urls",
+            ],
+            additionalProperties: false,
+          },
+        },
+        institution: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            ownership_governance_finding: { type: "string" },
+            mission_orientation_finding: { type: "string" },
+            funding_relationships_finding: { type: "string" },
+            editorial_or_research_independence_finding: { type: "string" },
+            evidence_urls: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: [
+            "name",
+            "ownership_governance_finding",
+            "mission_orientation_finding",
+            "funding_relationships_finding",
+            "editorial_or_research_independence_finding",
+            "evidence_urls",
+          ],
+          additionalProperties: false,
+        },
+        potential_conflicts_or_incentives: {
+          type: "array",
+          items: { type: "string" },
+        },
+        unresolved_identity_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "authors",
+        "institution",
+        "potential_conflicts_or_incentives",
+        "unresolved_identity_questions",
+      ],
+      additionalProperties: false,
+    },
+    framing_manipulation_audit: {
+      type: "object",
+      properties: {
+        indicators: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              category: {
+                type: "string",
+                enum: [
+                  "LOADED_LANGUAGE",
+                  "FALSE_DILEMMA",
+                  "DECONTEXTUALIZED_QUOTE",
+                  "SELECTIVE_STATISTICS",
+                  "UNNAMED_AUTHORITY",
+                  "FEAR_APPEAL",
+                  "EXCESSIVE_CERTAINTY",
+                  "CONSPIRATORIAL_FRAMING",
+                  "SCAPEGOATING",
+                  "MANUFACTURED_CONSENSUS",
+                  "ASTROTURFING_SIGNAL",
+                  "AMPLIFICATION_PATTERN",
+                  "MISLEADING_HEADLINE",
+                  "OTHER",
+                ],
+              },
+              observation: { type: "string" },
+              materiality: {
+                type: "string",
+                enum: ["LOW", "MATERIAL", "CRITICAL"],
+              },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+              inference_limit: { type: "string" },
+            },
+            required: [
+              "category",
+              "observation",
+              "materiality",
+              "evidence_urls",
+              "inference_limit",
+            ],
+            additionalProperties: false,
+          },
+        },
+        overall_framing_finding: { type: "string" },
+        intent_evidence_status: {
+          type: "string",
+          enum: [
+            "NO_INTENT_INFERENCE",
+            "INTENT_EVIDENCE_PRESENT",
+            "INTENT_UNRESOLVED",
+          ],
+        },
+        truth_status_implication: {
+          type: "string",
+          enum: [
+            "NO_DIRECT_TRUTH_INFERENCE",
+            "MATERIAL_EVIDENCE_IMPACT_IDENTIFIED",
+          ],
+        },
+        unresolved_framing_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "indicators",
+        "overall_framing_finding",
+        "intent_evidence_status",
+        "truth_status_implication",
+        "unresolved_framing_questions",
+      ],
+      additionalProperties: false,
+    },
+    source_ecosystem_audit: {
+      type: "object",
+      properties: {
+        category: {
+          type: "string",
+          enum: [
+            "SCHOLARLY",
+            "NEWS",
+            "FACT_CHECK",
+            "MEDIA_BIAS_PLATFORM",
+            "GOVERNMENT",
+            "PUBLIC_RECORD",
+            "ADVOCACY",
+            "CORPORATE",
+            "PERSONAL_OR_SOCIAL",
+            "OTHER",
+          ],
+        },
+        editorial_independence_finding: { type: "string" },
+        upstream_reporting_chain_finding: { type: "string" },
+        correction_policy_finding: { type: "string" },
+        fact_check_audit: {
+          type: "object",
+          properties: {
+            applicability: {
+              type: "string",
+              enum: ["NOT_APPLICABLE", "FACT_CHECK_SOURCE"],
+            },
+            exact_claim_checked: { type: "string" },
+            methodology_finding: { type: "string" },
+            evidence_selection_finding: { type: "string" },
+            framing_or_omission_concerns: {
+              type: "array",
+              items: { type: "string" },
+            },
+            unresolved_questions: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: [
+            "applicability",
+            "exact_claim_checked",
+            "methodology_finding",
+            "evidence_selection_finding",
+            "framing_or_omission_concerns",
+            "unresolved_questions",
+          ],
+          additionalProperties: false,
+        },
+        media_bias_platform_audit: {
+          type: "object",
+          properties: {
+            applicability: {
+              type: "string",
+              enum: ["NOT_APPLICABLE", "MEDIA_BIAS_PLATFORM"],
+            },
+            methodology_finding: { type: "string" },
+            ownership_funding_finding: { type: "string" },
+            rating_scope_limitations: {
+              type: "array",
+              items: { type: "string" },
+            },
+            unresolved_questions: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: [
+            "applicability",
+            "methodology_finding",
+            "ownership_funding_finding",
+            "rating_scope_limitations",
+            "unresolved_questions",
+          ],
+          additionalProperties: false,
+        },
+      },
+      required: [
+        "category",
+        "editorial_independence_finding",
+        "upstream_reporting_chain_finding",
+        "correction_policy_finding",
+        "fact_check_audit",
+        "media_bias_platform_audit",
+      ],
+      additionalProperties: false,
+    },
+    peer_review_status: { type: "string" },
+    correction_retraction_status: { type: "string" },
+    funding_conflicts: { type: "string" },
+    funding_conflict_audit: {
+      type: "object",
+      properties: {
+        disclosure_status: {
+          type: "string",
+          enum: [
+            "DISCLOSURE_PRESENT",
+            "NO_DISCLOSURE_FOUND",
+            "DISCLOSURE_INACCESSIBLE",
+            "NOT_APPLICABLE",
+            "UNKNOWN",
+          ],
+        },
+        disclosure_text_finding: { type: "string" },
+        disclosed_funders: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              grant_or_award: { type: "string" },
+              stated_role: { type: "string" },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: [
+              "name",
+              "grant_or_award",
+              "stated_role",
+              "evidence_urls",
+            ],
+            additionalProperties: false,
+          },
+        },
+        author_financial_interests: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              person_or_entity: { type: "string" },
+              relationship_type: {
+                type: "string",
+                enum: [
+                  "EMPLOYMENT",
+                  "CONSULTING",
+                  "EQUITY",
+                  "PATENT",
+                  "BOARD_ROLE",
+                  "HONORARIA",
+                  "FUNDING",
+                  "OTHER",
+                ],
+              },
+              description: { type: "string" },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: [
+              "person_or_entity",
+              "relationship_type",
+              "description",
+              "evidence_urls",
+            ],
+            additionalProperties: false,
+          },
+        },
+        sponsor_role: {
+          type: "object",
+          properties: {
+            study_design: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            data_collection: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            analysis_interpretation: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            manuscript_preparation: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            publication_approval_or_veto: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            finding: { type: "string" },
+          },
+          required: [
+            "study_design",
+            "data_collection",
+            "analysis_interpretation",
+            "manuscript_preparation",
+            "publication_approval_or_veto",
+            "finding",
+          ],
+          additionalProperties: false,
+        },
+        possible_undisclosed_conflict_signals: {
+          type: "array",
+          items: { type: "string" },
+        },
+        evidence_urls: {
+          type: "array",
+          items: { type: "string" },
+        },
+        interpretation: { type: "string" },
+        unresolved_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "disclosure_status",
+        "disclosure_text_finding",
+        "disclosed_funders",
+        "author_financial_interests",
+        "sponsor_role",
+        "possible_undisclosed_conflict_signals",
+        "evidence_urls",
+        "interpretation",
+        "unresolved_questions",
+      ],
+      additionalProperties: false,
+    },
+    methodology_summary: { type: "string" },
+    methodology_standards: {
+      type: "object",
+      properties: {
+        source_domain: { type: "string" },
+        source_design: { type: "string" },
+        applicable_standards: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              why_applicable: { type: "string" },
+            },
+            required: ["name", "why_applicable"],
+            additionalProperties: false,
+          },
+        },
+        intentionally_inapplicable_standards: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              why_not_applicable: { type: "string" },
+            },
+            required: ["name", "why_not_applicable"],
+            additionalProperties: false,
+          },
+        },
+        standards_evidence_urls: {
+          type: "array",
+          items: { type: "string" },
+        },
+        application_summary: { type: "string" },
+        unresolved_standards_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "source_domain",
+        "source_design",
+        "applicable_standards",
+        "intentionally_inapplicable_standards",
+        "standards_evidence_urls",
+        "application_summary",
+        "unresolved_standards_questions",
+      ],
+      additionalProperties: false,
+    },
+    citation_integrity_summary: { type: "string" },
+    citation_audit: {
+      type: "object",
+      properties: {
+        applicability: {
+          type: "string",
+          enum: [
+            "NOT_APPLICABLE",
+            "CITATIONS_PRESENT",
+            "CITATIONS_NOT_ACCESSIBLE",
+          ],
+        },
+        citations_examined: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              cited_work: { type: "string" },
+              cited_locator: { type: "string" },
+              proposition_at_issue: { type: "string" },
+              support_status: {
+                type: "string",
+                enum: [
+                  "SUPPORTS",
+                  "PARTIAL_SUPPORT",
+                  "DOES_NOT_SUPPORT",
+                  "CONTRADICTS",
+                  "UNVERIFIED",
+                ],
+              },
+              primary_or_secondary: {
+                type: "string",
+                enum: ["PRIMARY", "SECONDARY", "UNKNOWN"],
+              },
+              correction_retraction_note: { type: "string" },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+              rationale: { type: "string" },
+            },
+            required: [
+              "cited_work",
+              "cited_locator",
+              "proposition_at_issue",
+              "support_status",
+              "primary_or_secondary",
+              "correction_retraction_note",
+              "evidence_urls",
+              "rationale",
+            ],
+            additionalProperties: false,
+          },
+        },
+        citation_laundering_or_circularity: {
+          type: "array",
+          items: { type: "string" },
+        },
+        quote_context_issues: {
+          type: "array",
+          items: { type: "string" },
+        },
+        missing_primary_source_concerns: {
+          type: "array",
+          items: { type: "string" },
+        },
+        unresolved_citation_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "applicability",
+        "citations_examined",
+        "citation_laundering_or_circularity",
+        "quote_context_issues",
+        "missing_primary_source_concerns",
+        "unresolved_citation_questions",
+      ],
+      additionalProperties: false,
+    },
+    data_integrity_summary: { type: "string" },
+    quantitative_forensics: {
+      type: "object",
+      properties: {
+        applicability: {
+          type: "string",
+          enum: ["NOT_APPLICABLE", "TABULAR_DATA"],
+        },
+        calculations_performed: {
+          type: "array",
+          items: { type: "string" },
+        },
+        reported_figures_reproduced: {
+          type: "array",
+          items: { type: "string" },
+        },
+        reported_figures_not_reproduced: {
+          type: "array",
+          items: { type: "string" },
+        },
+        denominator_unit_population_checks: {
+          type: "array",
+          items: { type: "string" },
+        },
+        statistical_warnings: {
+          type: "array",
+          items: { type: "string" },
+        },
+        unresolved_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "applicability",
+        "calculations_performed",
+        "reported_figures_reproduced",
+        "reported_figures_not_reproduced",
+        "denominator_unit_population_checks",
+        "statistical_warnings",
+        "unresolved_questions",
+      ],
+      additionalProperties: false,
+    },
+    historical_cultural_temporal_context: { type: "string" },
+    temporal_verification: {
+      type: "object",
+      properties: {
+        source_publication_date_finding: { type: "string" },
+        source_last_update_finding: { type: "string" },
+        evidence_time_period_finding: { type: "string" },
+        current_applicability: {
+          type: "string",
+          enum: [
+            "CURRENT",
+            "HISTORICAL_ONLY",
+            "PARTIAL",
+            "UNKNOWN",
+            "NOT_TIME_SENSITIVE",
+          ],
+        },
+        staleness_risk: {
+          type: "string",
+          enum: [
+            "NONE_IDENTIFIED",
+            "LOW",
+            "MATERIAL",
+            "UNKNOWN",
+            "NOT_APPLICABLE",
+          ],
+        },
+        unresolved_temporal_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "source_publication_date_finding",
+        "source_last_update_finding",
+        "evidence_time_period_finding",
+        "current_applicability",
+        "staleness_risk",
+        "unresolved_temporal_questions",
+      ],
+      additionalProperties: false,
+    },
+    url_forensics: {
+      type: "object",
+      properties: {
+        applicability: {
+          type: "string",
+          enum: ["NOT_APPLICABLE", "URL_SOURCE"],
+        },
+        canonical_page_finding: { type: "string" },
+        domain_ownership_affiliation_finding: { type: "string" },
+        archive_historical_version_finding: { type: "string" },
+        redirect_lookalike_risk_finding: { type: "string" },
+        update_correction_policy_finding: { type: "string" },
+        earliest_publication_finding: { type: "string" },
+        unavailable_technical_checks: {
+          type: "array",
+          items: { type: "string" },
+        },
+        unresolved_url_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "applicability",
+        "canonical_page_finding",
+        "domain_ownership_affiliation_finding",
+        "archive_historical_version_finding",
+        "redirect_lookalike_risk_finding",
+        "update_correction_policy_finding",
+        "earliest_publication_finding",
+        "unavailable_technical_checks",
+        "unresolved_url_questions",
+      ],
+      additionalProperties: false,
+    },
+    media_digital_authenticity_summary: { type: "string" },
+    media_forensics: {
+      type: "object",
+      properties: {
+        applicability: {
+          type: "string",
+          enum: ["NOT_APPLICABLE", "IMAGE", "PDF", "OTHER_MEDIA"],
+        },
+        metadata_status: {
+          type: "string",
+          enum: [
+            "NOT_APPLICABLE",
+            "NOT_PROVIDED",
+            "PARTIAL",
+            "AVAILABLE",
+          ],
+        },
+        metadata_findings: { type: "array", items: { type: "string" } },
+        visible_manipulation_indicators: {
+          type: "array",
+          items: { type: "string" },
+        },
+        context_mismatch_indicators: {
+          type: "array",
+          items: { type: "string" },
+        },
+        earliest_publication_finding: { type: "string" },
+        geolocation_chronolocation_finding: { type: "string" },
+        reverse_image_search_status: {
+          type: "string",
+          enum: [
+            "NOT_APPLICABLE",
+            "NOT_AVAILABLE_IN_CURRENT_TOOLING",
+            "TEXTUAL_CORROBORATION_ONLY",
+          ],
+        },
+        reverse_image_search_finding: { type: "string" },
+        visual_statistical_forensics: {
+          type: "object",
+          properties: {
+            applicability: {
+              type: "string",
+              enum: [
+                "NOT_APPLICABLE",
+                "CHART_OR_FIGURE_PRESENT",
+                "VISUAL_DATA_PRESENT_UNREADABLE",
+              ],
+            },
+            axis_scale_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            denominator_baseline_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            time_window_category_selection_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            annotation_label_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            visual_distortion_findings: {
+              type: "array",
+              items: { type: "string" },
+            },
+            underlying_data_recovered: { type: "boolean" },
+            underlying_data_source: { type: "string" },
+            unresolved_visual_data_questions: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+          required: [
+            "applicability",
+            "axis_scale_findings",
+            "denominator_baseline_findings",
+            "time_window_category_selection_findings",
+            "annotation_label_findings",
+            "visual_distortion_findings",
+            "underlying_data_recovered",
+            "underlying_data_source",
+            "unresolved_visual_data_questions",
+          ],
+          additionalProperties: false,
+        },
+        unresolved_media_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "applicability",
+        "metadata_status",
+        "metadata_findings",
+        "visible_manipulation_indicators",
+        "context_mismatch_indicators",
+        "earliest_publication_finding",
+        "geolocation_chronolocation_finding",
+        "reverse_image_search_status",
+        "reverse_image_search_finding",
+        "visual_statistical_forensics",
+        "unresolved_media_questions",
+      ],
+      additionalProperties: false,
+    },
+    critical_failures: {
+      type: "array",
+      items: { type: "string" },
+    },
+    evidence_urls: {
+      type: "array",
+      items: { type: "string" },
+    },
+    dimension_scores: CREDIBILITY_DIMENSION_SCHEMA,
+    overall_rationale: { type: "string" },
+  },
+  required: [
+    "source_id",
+    "retrieval_status",
+    "primary_or_secondary",
+    "provenance_status",
+    "information_origin_url",
+    "information_origin_status",
+    "independence_fingerprint",
+    "author",
+    "institution",
+    "author_expertise_summary",
+    "institutional_analysis",
+    "identity_affiliation_audit",
+    "framing_manipulation_audit",
+    "source_ecosystem_audit",
+    "peer_review_status",
+    "correction_retraction_status",
+    "funding_conflicts",
+    "funding_conflict_audit",
+    "methodology_summary",
+    "methodology_standards",
+    "citation_integrity_summary",
+    "citation_audit",
+    "data_integrity_summary",
+    "quantitative_forensics",
+    "historical_cultural_temporal_context",
+    "temporal_verification",
+    "url_forensics",
+    "media_digital_authenticity_summary",
+    "media_forensics",
+    "critical_failures",
+    "evidence_urls",
+    "dimension_scores",
+    "overall_rationale",
+  ],
+  additionalProperties: false,
+} as const;
+
+export const SYNTHESIS_SCHEMA = {
+  type: "object",
+  properties: {
+    claims: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          claim_id: { type: "string" },
+          first_pass_status: {
+            type: "string",
+            enum: [
+              "VERIFIED",
+              "HIGH_CONFIDENCE",
+              "TENTATIVE",
+              "UNKNOWN",
+              "CONTRADICTED",
+            ],
+          },
+          confidence: {
+            type: "number",
+            minimum: 0,
+            maximum: 100,
+          },
+          evidence_source_ids: {
+            type: "array",
+            items: { type: "string" },
+          },
+          counterevidence_source_ids: {
+            type: "array",
+            items: { type: "string" },
+          },
+          reasoning: { type: "string" },
+          known_unknowns: { type: "string" },
+          additional_evidence_needed: { type: "string" },
+          unresolved_material_conflict: { type: "boolean" },
+          critical_failure: { type: "boolean" },
+          temporal_alignment: {
+            type: "object",
+            properties: {
+              claim_time_scope_finding: { type: "string" },
+              evidence_time_scope_finding: { type: "string" },
+              alignment: {
+                type: "string",
+                enum: [
+                  "ALIGNED",
+                  "PARTIAL",
+                  "MISALIGNED",
+                  "UNKNOWN",
+                  "NOT_TIME_SENSITIVE",
+                ],
+              },
+              rationale: { type: "string" },
+            },
+            required: [
+              "claim_time_scope_finding",
+              "evidence_time_scope_finding",
+              "alignment",
+              "rationale",
+            ],
+            additionalProperties: false,
+          },
+          dimension_scores: CREDIBILITY_DIMENSION_SCHEMA,
+        },
+        required: [
+          "claim_id",
+          "first_pass_status",
+          "confidence",
+          "evidence_source_ids",
+          "counterevidence_source_ids",
+          "reasoning",
+          "known_unknowns",
+          "additional_evidence_needed",
+          "unresolved_material_conflict",
+          "critical_failure",
+          "temporal_alignment",
+          "dimension_scores",
+        ],
+        additionalProperties: false,
+      },
+    },
+    investigation_dimension_scores: CREDIBILITY_DIMENSION_SCHEMA,
+    investigation_critical_failures: {
+      type: "array",
+      items: { type: "string" },
+    },
+    investigation_rationale: { type: "string" },
+    research_saturation: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: [
+            "CONVERGED",
+            "PROVISIONAL_STOP",
+            "CONTINUE_REQUIRED",
+          ],
+        },
+        convergence_basis: {
+          type: "array",
+          items: { type: "string" },
+        },
+        reasons_to_continue: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: [
+              "MISSING_REQUIRED_PRIMARY_EVIDENCE",
+              "UNRESOLVED_MATERIAL_CONFLICT",
+              "UNRESOLVED_PROVENANCE_OR_ORIGIN",
+              "UNREPRODUCED_MATERIAL_STATISTICS",
+              "MATERIAL_CITATION_UNVERIFIED",
+              "GLOBAL_OR_LINGUISTIC_COVERAGE_GAP",
+              "SOURCE_INDEPENDENCE_UNRESOLVED",
+              "MATERIAL_COUNTEREVIDENCE_UNRESOLVED",
+              "OTHER",
+            ],
+          },
+        },
+        residual_gaps: {
+          type: "array",
+          items: { type: "string" },
+        },
+        additional_searches_needed: {
+          type: "array",
+          items: { type: "string" },
+        },
+        stop_rationale: { type: "string" },
+      },
+      required: [
+        "status",
+        "convergence_basis",
+        "reasons_to_continue",
+        "residual_gaps",
+        "additional_searches_needed",
+        "stop_rationale",
+      ],
+      additionalProperties: false,
+    },
+    executive_finding: { type: "string" },
+    strongest_supporting_evidence: {
+      type: "array",
+      items: { type: "string" },
+    },
+    strongest_contrary_evidence: {
+      type: "array",
+      items: { type: "string" },
+    },
+    counter_hypotheses_tested: {
+      type: "array",
+      items: { type: "string" },
+    },
+    known_unknowns: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: [
+    "claims",
+    "investigation_dimension_scores",
+    "investigation_critical_failures",
+    "investigation_rationale",
+    "research_saturation",
+    "executive_finding",
+    "strongest_supporting_evidence",
+    "strongest_contrary_evidence",
+    "counter_hypotheses_tested",
+    "known_unknowns",
+  ],
+  additionalProperties: false,
+} as const;
+
+
+export const REPORT_SCHEMA = {
+  type: "object",
+  properties: {
+    executive_finding: { type: "string" },
+    exact_claims_evaluated: { type: "string" },
+    credibility_standards_applied: { type: "string" },
+    primary_evidence: { type: "string" },
+    author_institutional_analysis: { type: "string" },
+    citation_audit: { type: "string" },
+    research_methodology_assessment: { type: "string" },
+    data_statistical_verification: { type: "string" },
+    funding_conflict_analysis: { type: "string" },
+    independent_corroboration: { type: "string" },
+    media_url_digital_forensics: { type: "string" },
+    historical_cultural_context: { type: "string" },
+    temporal_verification: { type: "string" },
+    strongest_supporting_evidence: { type: "string" },
+    strongest_contrary_evidence: { type: "string" },
+    counter_hypothesis_test: { type: "string" },
+    known_unknowns: { type: "string" },
+    credibility_matrix: { type: "string" },
+    claim_level_confidence: { type: "string" },
+    final_assessment: { type: "string" },
+    source_ledger_summary: { type: "string" },
+    adversarial_validation: { type: "string" },
+    limitations_and_future_evidence: { type: "string" },
+  },
+  required: [
+    "executive_finding",
+    "exact_claims_evaluated",
+    "credibility_standards_applied",
+    "primary_evidence",
+    "author_institutional_analysis",
+    "citation_audit",
+    "research_methodology_assessment",
+    "data_statistical_verification",
+    "funding_conflict_analysis",
+    "independent_corroboration",
+    "media_url_digital_forensics",
+    "historical_cultural_context",
+    "temporal_verification",
+    "strongest_supporting_evidence",
+    "strongest_contrary_evidence",
+    "counter_hypothesis_test",
+    "known_unknowns",
+    "credibility_matrix",
+    "claim_level_confidence",
+    "final_assessment",
+    "source_ledger_summary",
+    "adversarial_validation",
+    "limitations_and_future_evidence",
+  ],
+  additionalProperties: false,
+} as const;

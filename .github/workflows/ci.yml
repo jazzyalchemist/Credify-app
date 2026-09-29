@@ -1,0 +1,59 @@
+name: Credify CI
+
+on:
+  push:
+    branches:
+      - main
+      - "build/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Protocol tests
+        run: npm test
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Production build
+        run: npm run build
+
+
+      - name: Prepare tested source snapshot
+        if: success()
+        run: |
+          mkdir -p /tmp/credify-source
+          rsync -a \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.next' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            ./ /tmp/credify-source/
+          printf '%s\n' "$GITHUB_SHA" > /tmp/credify-source/TESTED_COMMIT_SHA
+
+      - name: Upload tested source snapshot
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: credify-tested-source
+          path: /tmp/credify-source
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,1790 @@
+import {
+  appendAuditEvent,
+  getClaims,
+  getInvestigation,
+  getSources,
+  updateClaim,
+  updateSource,
+  setResearchSaturation,
+} from "@/lib/db/repository";
+import {
+  listAiJobs,
+  type AiJobRecord,
+} from "@/lib/db/ai-jobs";
+import {
+  listClaimSourceEdges,
+  listEvidenceChains,
+  linkClaimSource,
+  createSearchLog,
+} from "@/lib/db/evidence";
+import {
+  listCredibilityAssessments,
+  upsertCredibilityAssessment,
+  validateAndTotalDimensionScores,
+  type DimensionScores,
+} from "@/lib/db/credibility";
+import {
+  createBackgroundResponse,
+  extractCodeInterpreterUsage,
+  extractOutputText,
+  extractWebQueries,
+  extractWebSources,
+  hasWebSearchCall,
+  researchModel,
+  type OpenAIResponse,
+} from "./openai";
+import {
+  CREDIFY_RESEARCH_SYSTEM,
+  screeningPrompt,
+  sourceAuditPrompt,
+  synthesisPrompt,
+} from "./prompts";
+import {
+  SCREENING_SCHEMA,
+  SOURCE_AUDIT_SCHEMA,
+  SYNTHESIS_SCHEMA,
+} from "./schemas";
+import { loadCanonicalInitialProtocol } from "@/lib/protocol/canonical";
+import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
+import {
+  extractDoi,
+  verifyCrossrefStatus,
+} from "@/lib/scholarly/crossref";
+import {
+  ensureArtifactSources,
+  getArtifactBySourceId,
+  listArtifacts,
+} from "@/lib/db/artifacts";
+import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
+import { validateFirstPassConfidence } from "@/lib/protocol/confidence";
+import {
+  artifactMediaApplicability,
+  artifactMetadataStatus,
+  artifactNeedsQuantitativeForensics,
+} from "@/lib/artifacts/content";
+
+type ScreeningOutput = {
+  decisions: Array<{
+    source_id: string;
+    decision: "INCLUDED" | "EXCLUDED";
+    reason: string;
+    potential_duplicate_of_source_id: string;
+  }>;
+  screening_summary: string;
+  unresolved_retrieval_questions: string[];
+};
+
+type DependencyEvidence = {
+  key: string;
+  evidence_urls: string[];
+};
+
+type SourceAuditOutput = {
+  source_id: string;
+  retrieval_status: "RETRIEVED" | "PARTIAL" | "NOT_RETRIEVED";
+  primary_or_secondary: "PRIMARY" | "SECONDARY" | "UNKNOWN";
+  provenance_status: "VERIFIED" | "PARTIAL" | "FAILED";
+  information_origin_url: string;
+  information_origin_status: "VERIFIED" | "UNRESOLVED";
+  independence_fingerprint: {
+    wire_or_release: DependencyEvidence;
+    datasets: DependencyEvidence[];
+    authors: DependencyEvidence[];
+    institutions: DependencyEvidence[];
+    funders: DependencyEvidence[];
+    notes: string[];
+  };
+  author: string;
+  institution: string;
+  author_expertise_summary: string;
+  institutional_analysis: string;
+  identity_affiliation_audit: {
+    authors: Array<{
+      name: string;
+      role_or_byline: string;
+      verified_credentials: string[];
+      unverified_credentials: string[];
+      verified_affiliations: string[];
+      registry_identifiers: string[];
+      evidence_urls: string[];
+    }>;
+    institution: {
+      name: string;
+      ownership_governance_finding: string;
+      mission_orientation_finding: string;
+      funding_relationships_finding: string;
+      editorial_or_research_independence_finding: string;
+      evidence_urls: string[];
+    };
+    potential_conflicts_or_incentives: string[];
+    unresolved_identity_questions: string[];
+  };
+  framing_manipulation_audit: {
+    indicators: Array<{
+      category:
+        | "LOADED_LANGUAGE"
+        | "FALSE_DILEMMA"
+        | "DECONTEXTUALIZED_QUOTE"
+        | "SELECTIVE_STATISTICS"
+        | "UNNAMED_AUTHORITY"
+        | "FEAR_APPEAL"
+        | "EXCESSIVE_CERTAINTY"
+        | "CONSPIRATORIAL_FRAMING"
+        | "SCAPEGOATING"
+        | "MANUFACTURED_CONSENSUS"
+        | "ASTROTURFING_SIGNAL"
+        | "AMPLIFICATION_PATTERN"
+        | "MISLEADING_HEADLINE"
+        | "OTHER";
+      observation: string;
+      materiality: "LOW" | "MATERIAL" | "CRITICAL";
+      evidence_urls: string[];
+      inference_limit: string;
+    }>;
+    overall_framing_finding: string;
+    intent_evidence_status:
+      | "NO_INTENT_INFERENCE"
+      | "INTENT_EVIDENCE_PRESENT"
+      | "INTENT_UNRESOLVED";
+    truth_status_implication:
+      | "NO_DIRECT_TRUTH_INFERENCE"
+      | "MATERIAL_EVIDENCE_IMPACT_IDENTIFIED";
+    unresolved_framing_questions: string[];
+  };
+  source_ecosystem_audit: {
+    category:
+      | "SCHOLARLY"
+      | "NEWS"
+      | "FACT_CHECK"
+      | "MEDIA_BIAS_PLATFORM"
+      | "GOVERNMENT"
+      | "PUBLIC_RECORD"
+      | "ADVOCACY"
+      | "CORPORATE"
+      | "PERSONAL_OR_SOCIAL"
+      | "OTHER";
+    editorial_independence_finding: string;
+    upstream_reporting_chain_finding: string;
+    correction_policy_finding: string;
+    fact_check_audit: {
+      applicability: "NOT_APPLICABLE" | "FACT_CHECK_SOURCE";
+      exact_claim_checked: string;
+      methodology_finding: string;
+      evidence_selection_finding: string;
+      framing_or_omission_concerns: string[];
+      unresolved_questions: string[];
+    };
+    media_bias_platform_audit: {
+      applicability: "NOT_APPLICABLE" | "MEDIA_BIAS_PLATFORM";
+      methodology_finding: string;
+      ownership_funding_finding: string;
+      rating_scope_limitations: string[];
+      unresolved_questions: string[];
+    };
+  };
+  peer_review_status: string;
+  correction_retraction_status: string;
+  funding_conflicts: string;
+  methodology_summary: string;
+  methodology_standards: {
+    source_domain: string;
+    source_design: string;
+    applicable_standards: Array<{
+      name: string;
+      why_applicable: string;
+    }>;
+    intentionally_inapplicable_standards: Array<{
+      name: string;
+      why_not_applicable: string;
+    }>;
+    standards_evidence_urls: string[];
+    application_summary: string;
+    unresolved_standards_questions: string[];
+  };
+  citation_integrity_summary: string;
+  citation_audit: {
+    applicability:
+      | "NOT_APPLICABLE"
+      | "CITATIONS_PRESENT"
+      | "CITATIONS_NOT_ACCESSIBLE";
+    citations_examined: Array<{
+      cited_work: string;
+      cited_locator: string;
+      proposition_at_issue: string;
+      support_status:
+        | "SUPPORTS"
+        | "PARTIAL_SUPPORT"
+        | "DOES_NOT_SUPPORT"
+        | "CONTRADICTS"
+        | "UNVERIFIED";
+      primary_or_secondary: "PRIMARY" | "SECONDARY" | "UNKNOWN";
+      correction_retraction_note: string;
+      evidence_urls: string[];
+      rationale: string;
+    }>;
+    citation_laundering_or_circularity: string[];
+    quote_context_issues: string[];
+    missing_primary_source_concerns: string[];
+    unresolved_citation_questions: string[];
+  };
+  data_integrity_summary: string;
+  quantitative_forensics: {
+    applicability: "NOT_APPLICABLE" | "TABULAR_DATA";
+    calculations_performed: string[];
+    reported_figures_reproduced: string[];
+    reported_figures_not_reproduced: string[];
+    denominator_unit_population_checks: string[];
+    statistical_warnings: string[];
+    unresolved_questions: string[];
+  };
+  historical_cultural_temporal_context: string;
+  temporal_verification: {
+    source_publication_date_finding: string;
+    source_last_update_finding: string;
+    evidence_time_period_finding: string;
+    current_applicability:
+      | "CURRENT"
+      | "HISTORICAL_ONLY"
+      | "PARTIAL"
+      | "UNKNOWN"
+      | "NOT_TIME_SENSITIVE";
+    staleness_risk:
+      | "NONE_IDENTIFIED"
+      | "LOW"
+      | "MATERIAL"
+      | "UNKNOWN"
+      | "NOT_APPLICABLE";
+    unresolved_temporal_questions: string[];
+  };
+  url_forensics: {
+    applicability: "NOT_APPLICABLE" | "URL_SOURCE";
+    canonical_page_finding: string;
+    domain_ownership_affiliation_finding: string;
+    archive_historical_version_finding: string;
+    redirect_lookalike_risk_finding: string;
+    update_correction_policy_finding: string;
+    earliest_publication_finding: string;
+    unavailable_technical_checks: string[];
+    unresolved_url_questions: string[];
+  };
+  media_digital_authenticity_summary: string;
+  media_forensics: {
+    applicability: "NOT_APPLICABLE" | "IMAGE" | "PDF" | "OTHER_MEDIA";
+    metadata_status:
+      | "NOT_APPLICABLE"
+      | "NOT_PROVIDED"
+      | "PARTIAL"
+      | "AVAILABLE";
+    metadata_findings: string[];
+    visible_manipulation_indicators: string[];
+    context_mismatch_indicators: string[];
+    earliest_publication_finding: string;
+    geolocation_chronolocation_finding: string;
+    reverse_image_search_status:
+      | "NOT_APPLICABLE"
+      | "NOT_AVAILABLE_IN_CURRENT_TOOLING"
+      | "TEXTUAL_CORROBORATION_ONLY";
+    reverse_image_search_finding: string;
+    visual_statistical_forensics: {
+      applicability:
+        | "NOT_APPLICABLE"
+        | "CHART_OR_FIGURE_PRESENT"
+        | "VISUAL_DATA_PRESENT_UNREADABLE";
+      axis_scale_findings: string[];
+      denominator_baseline_findings: string[];
+      time_window_category_selection_findings: string[];
+      annotation_label_findings: string[];
+      visual_distortion_findings: string[];
+      underlying_data_recovered: boolean;
+      underlying_data_source: string;
+      unresolved_visual_data_questions: string[];
+    };
+    unresolved_media_questions: string[];
+  };
+  critical_failures: string[];
+  evidence_urls: string[];
+  dimension_scores: DimensionScores;
+  overall_rationale: string;
+};
+
+type SynthesisOutput = {
+  claims: Array<{
+    claim_id: string;
+    first_pass_status:
+      | "VERIFIED"
+      | "HIGH_CONFIDENCE"
+      | "TENTATIVE"
+      | "UNKNOWN"
+      | "CONTRADICTED";
+    confidence: number;
+    evidence_source_ids: string[];
+    counterevidence_source_ids: string[];
+    reasoning: string;
+    known_unknowns: string;
+    additional_evidence_needed: string;
+    unresolved_material_conflict: boolean;
+    critical_failure: boolean;
+    temporal_alignment: {
+      claim_time_scope_finding: string;
+      evidence_time_scope_finding: string;
+      alignment:
+        | "ALIGNED"
+        | "PARTIAL"
+        | "MISALIGNED"
+        | "UNKNOWN"
+        | "NOT_TIME_SENSITIVE";
+      rationale: string;
+    };
+    dimension_scores: DimensionScores;
+  }>;
+  investigation_dimension_scores: DimensionScores;
+  investigation_critical_failures: string[];
+  investigation_rationale: string;
+  research_saturation: {
+    status: "CONVERGED" | "PROVISIONAL_STOP" | "CONTINUE_REQUIRED";
+    convergence_basis: string[];
+    reasons_to_continue: Array<
+      | "MISSING_REQUIRED_PRIMARY_EVIDENCE"
+      | "UNRESOLVED_MATERIAL_CONFLICT"
+      | "UNRESOLVED_PROVENANCE_OR_ORIGIN"
+      | "UNREPRODUCED_MATERIAL_STATISTICS"
+      | "MATERIAL_CITATION_UNVERIFIED"
+      | "GLOBAL_OR_LINGUISTIC_COVERAGE_GAP"
+      | "SOURCE_INDEPENDENCE_UNRESOLVED"
+      | "MATERIAL_COUNTEREVIDENCE_UNRESOLVED"
+      | "OTHER"
+    >;
+    residual_gaps: string[];
+    additional_searches_needed: string[];
+    stop_rationale: string;
+  };
+  executive_finding: string;
+  strongest_supporting_evidence: string[];
+  strongest_contrary_evidence: string[];
+  counter_hypotheses_tested: string[];
+  known_unknowns: string[];
+};
+
+function parseJson<T>(text: string): T {
+  if (!text) throw new Error("AI response contained no structured output.");
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("AI response could not be parsed as structured JSON.");
+  }
+}
+
+function mapExternalStatus(status: string) {
+  if (status === "queued") return "QUEUED" as const;
+  if (status === "in_progress") return "IN_PROGRESS" as const;
+  if (status === "completed") return "IN_PROGRESS" as const;
+  return "FAILED" as const;
+}
+
+function normalizeUrl(value: string) {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    if (url.pathname !== "/") url.pathname = url.pathname.replace(/\/$/, "");
+    return url.toString();
+  } catch {
+    return value.trim();
+  }
+}
+
+function sourceUrlIdentity(value: string | null) {
+  if (!value || !/^https?:\/\//i.test(value)) return null;
+
+  try {
+    const parsed = new URL(value);
+    parsed.hash = "";
+    if (parsed.pathname !== "/") {
+      parsed.pathname = parsed.pathname.replace(/\/$/, "");
+    }
+
+    return {
+      submittedUrl: value,
+      normalizedUrl: parsed.toString(),
+      hostname: parsed.hostname.toLowerCase(),
+      protocol: parsed.protocol.toLowerCase(),
+      parseError: null as string | null,
+    };
+  } catch {
+    return {
+      submittedUrl: value,
+      normalizedUrl: null,
+      hostname: null,
+      protocol: null,
+      parseError: "Submitted HTTP(S) identifier could not be parsed as a URL.",
+    };
+  }
+}
+
+function canonicalDependencyKey(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return normalizeUrl(trimmed);
+  return trimmed.replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeDependencyFingerprint(
+  fingerprint: SourceAuditOutput["independence_fingerprint"],
+  trustedUrls: Set<string>,
+) {
+  function normalizeEntry(
+    entry: DependencyEvidence,
+    label: string,
+    allowEmpty = false,
+  ) {
+    const key = canonicalDependencyKey(entry.key);
+
+    if (!key) {
+      if (!allowEmpty || entry.evidence_urls.length > 0) {
+        if (!allowEmpty) {
+          throw new Error(label + " dependency key was empty.");
+        }
+        if (entry.evidence_urls.length > 0) {
+          throw new Error(
+            label + " dependency supplied evidence URLs without a dependency key.",
+          );
+        }
+      }
+      return { key: "", evidence_urls: [] as string[] };
+    }
+
+    if (entry.evidence_urls.length < 1) {
+      throw new Error(
+        label + " dependency requires at least one supporting evidence URL.",
+      );
+    }
+
+    const normalizedUrls = [...new Set(entry.evidence_urls.map(normalizeUrl))];
+    const invalid = normalizedUrls.filter((url) => !trustedUrls.has(url));
+    if (invalid.length > 0) {
+      throw new Error(
+        label +
+          " dependency referenced URLs not returned by web search or the audited source: " +
+          invalid.join(", "),
+      );
+    }
+
+    return { key, evidence_urls: normalizedUrls };
+  }
+
+  function normalizeList(entries: DependencyEvidence[], label: string) {
+    const byKey = new Map<string, { key: string; evidence_urls: string[] }>();
+    for (const entry of entries) {
+      const normalized = normalizeEntry(entry, label);
+      const existing = byKey.get(normalized.key);
+      if (existing) {
+        existing.evidence_urls = [
+          ...new Set([...existing.evidence_urls, ...normalized.evidence_urls]),
+        ];
+      } else {
+        byKey.set(normalized.key, normalized);
+      }
+    }
+    return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }
+
+  return {
+    wire_or_release: normalizeEntry(
+      fingerprint.wire_or_release,
+      "wire/release",
+      true,
+    ),
+    datasets: normalizeList(fingerprint.datasets, "dataset"),
+    authors: normalizeList(fingerprint.authors, "author"),
+    institutions: normalizeList(fingerprint.institutions, "institution"),
+    funders: normalizeList(fingerprint.funders, "funder"),
+    notes: fingerprint.notes.map((note) => note.trim()).filter(Boolean),
+  };
+}
+
+function assertExactCoverage(
+  expectedIds: string[],
+  receivedIds: string[],
+  label: string,
+) {
+  const expected = new Set(expectedIds);
+  const seen = new Set<string>();
+  const unknown: string[] = [];
+  const duplicates: string[] = [];
+
+  for (const id of receivedIds) {
+    if (!expected.has(id)) unknown.push(id);
+    if (seen.has(id)) duplicates.push(id);
+    seen.add(id);
+  }
+
+  const missing = expectedIds.filter((id) => !seen.has(id));
+
+  if (unknown.length || duplicates.length || missing.length) {
+    throw new Error(
+      label +
+        " coverage failed. Missing: " +
+        (missing.join(", ") || "none") +
+        "; unknown: " +
+        (unknown.join(", ") || "none") +
+        "; duplicates: " +
+        (duplicates.join(", ") || "none") +
+        ".",
+    );
+  }
+}
+
+async function ensureNoActiveNonAuditJob(investigationId: string) {
+  const active = (await listAiJobs(investigationId)).filter(
+    (job) =>
+      ["QUEUED", "IN_PROGRESS", "PROCESSING"].includes(job.status) &&
+      job.job_type !== "SOURCE_AUDIT",
+  );
+
+  if (active.length > 0) {
+    throw new Error(
+      "Another protocol automation job is active for this investigation.",
+    );
+  }
+}
+
+export async function startScreening(investigationId: string) {
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+  if (investigation.pre_redteam_frozen_at) {
+    throw new Error("The Page-1 dossier is frozen.");
+  }
+  if (investigation.current_phase !== "SCREENING") {
+    throw new Error("AI screening is only available during SCREENING.");
+  }
+
+  await ensureNoActiveNonAuditJob(investigationId);
+
+  const linkedArtifacts = await ensureArtifactSources(investigationId);
+  if (linkedArtifacts.length > 0) {
+    await appendAuditEvent(investigationId, "ARTIFACT_SOURCES_ENSURED", {
+      artifactSources: linkedArtifacts,
+      stage: "SCREENING",
+      note:
+        "Artifact/source linkage was verified before screening so submitted material cannot fall outside the source ledger.",
+    });
+  }
+
+  const [claims, sources, artifacts] = await Promise.all([
+    getClaims(investigationId),
+    getSources(investigationId),
+    listArtifacts(investigationId),
+  ]);
+  if (sources.length < 1) {
+    throw new Error("Screening requires at least one identified source.");
+  }
+
+  const screeningArtifactEntries = [];
+  for (const artifact of artifacts) {
+    if (!artifact.source_id) continue;
+    const part = await loadVerifiedArtifactInputPart(artifact);
+    screeningArtifactEntries.push(
+      {
+        type: "input_text",
+        text:
+          "UPLOADED ARTIFACT MAPPING: " +
+          artifact.id +
+          " -> " +
+          artifact.source_id +
+          " | filename=" +
+          artifact.original_filename +
+          " | sha256=" +
+          artifact.sha256,
+      },
+      part,
+    );
+  }
+
+  const model = researchModel();
+  const canonicalProtocol = await loadCanonicalInitialProtocol();
+  const requestPayload = {
+    model,
+    reasoning: { effort: "medium" },
+    input: [
+      {
+        role: "system",
+        content: CREDIFY_RESEARCH_SYSTEM + "\n\n" + canonicalProtocol,
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: screeningPrompt(investigation, claims, sources, artifacts),
+          },
+          ...screeningArtifactEntries,
+        ],
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "credify_source_screening",
+        strict: true,
+        schema: SCREENING_SCHEMA,
+      },
+    },
+  };
+
+  const response = await createBackgroundResponse(requestPayload);
+  const job = await persistBackgroundJobOrCancel({
+    investigationId,
+    jobType: "SCREENING",
+    response,
+    fallbackModel: model,
+    status: mapExternalStatus(response.status),
+    requestPayload: {
+      purpose: "source_screening",
+      protocolCommit: investigation.protocol_commit,
+      sourceIds: sources.map((source) => source.id),
+      artifactInputs: artifacts
+        .filter((artifact) => artifact.source_id)
+        .map((artifact) => ({
+          artifactId: artifact.id,
+          sourceId: artifact.source_id,
+          sha256: artifact.sha256,
+        })),
+    },
+  });
+
+  await appendAuditEvent(investigationId, "AI_SCREENING_STARTED", {
+    jobId: job.id,
+    sourceCount: sources.length,
+    artifactInputCount: artifacts.filter((artifact) => artifact.source_id).length,
+  });
+
+  return job;
+}
+
+export async function startSourceAudits(
+  investigationId: string,
+  batchSize = 8,
+) {
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+  if (investigation.pre_redteam_frozen_at) {
+    throw new Error("The Page-1 dossier is frozen.");
+  }
+  if (investigation.current_phase !== "ELIGIBILITY") {
+    throw new Error(
+      "Detailed source audits are only available during ELIGIBILITY.",
+    );
+  }
+
+  await ensureNoActiveNonAuditJob(investigationId);
+
+  const [claims, sources, assessments, jobs, artifacts] = await Promise.all([
+    getClaims(investigationId),
+    getSources(investigationId),
+    listCredibilityAssessments(investigationId),
+    listAiJobs(investigationId),
+    listArtifacts(investigationId),
+  ]);
+
+  const artifactBySourceId = new Map(
+    artifacts
+      .filter((artifact) => artifact.source_id)
+      .map((artifact) => [artifact.source_id as string, artifact]),
+  );
+
+  const included = sources.filter(
+    (source) =>
+      source.screening_decision === "INCLUDED" &&
+      source.included_in_synthesis,
+  );
+  if (included.length < 1) {
+    throw new Error("No included sources are available for eligibility audit.");
+  }
+
+  const assessedSourceIds = new Set(
+    assessments
+      .filter(
+        (assessment) =>
+          assessment.subject_type === "SOURCE" &&
+          assessment.stage === "FIRST_PASS",
+      )
+      .map((assessment) => assessment.subject_id),
+  );
+
+  const activeSourceIds = new Set(
+    jobs
+      .filter(
+        (job) =>
+          job.job_type === "SOURCE_AUDIT" &&
+          ["QUEUED", "IN_PROGRESS", "PROCESSING"].includes(job.status),
+      )
+      .map((job) => job.subject_id)
+      .filter((id): id is string => Boolean(id)),
+  );
+
+  const pending = included
+    .filter(
+      (source) =>
+        !assessedSourceIds.has(source.id) && !activeSourceIds.has(source.id),
+    )
+    .slice(0, Math.max(1, Math.min(batchSize, 8)));
+
+  if (pending.length === 0) {
+    return {
+      started: [],
+      remaining: 0,
+      message: "All included sources are already audited or currently running.",
+    };
+  }
+
+  const model = researchModel();
+  const canonicalProtocol = await loadCanonicalInitialProtocol();
+  const started: Array<{ sourceId: string; jobId: string }> = [];
+  const errors: Array<{ sourceId: string; error: string }> = [];
+
+  for (const source of pending) {
+    try {
+      const artifact = artifactBySourceId.get(source.id) ?? null;
+      const artifactPart = artifact
+        ? await loadVerifiedArtifactInputPart(artifact)
+        : null;
+      const userContent = [
+        {
+          type: "input_text",
+          text: sourceAuditPrompt(investigation, source, claims, artifact),
+        },
+        ...(artifactPart ? [artifactPart] : []),
+      ];
+
+      const quantitativeForensicsRequired = Boolean(
+        artifact && artifactNeedsQuantitativeForensics(artifact.mime_type),
+      );
+
+      const requestPayload = {
+        model,
+        reasoning: { effort: "high" },
+        tools: [
+          {
+            type: "web_search",
+            search_context_size: "high",
+          },
+          ...(quantitativeForensicsRequired
+            ? [
+                {
+                  type: "code_interpreter",
+                  container: { type: "auto" },
+                },
+              ]
+            : []),
+        ],
+        tool_choice: "required",
+        include: ["web_search_call.action.sources"],
+        input: [
+          {
+            role: "system",
+            content: CREDIFY_RESEARCH_SYSTEM + "\n\n" + canonicalProtocol,
+          },
+          {
+            role: "user",
+            content: userContent,
+          },
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "credify_source_credibility_audit",
+            strict: true,
+            schema: SOURCE_AUDIT_SCHEMA,
+          },
+        },
+      };
+
+      const response = await createBackgroundResponse(requestPayload);
+      const job = await persistBackgroundJobOrCancel({
+        investigationId,
+        jobType: "SOURCE_AUDIT",
+        response,
+        fallbackModel: model,
+        status: mapExternalStatus(response.status),
+        requestPayload: {
+          purpose: "source_credibility_audit",
+          protocolCommit: investigation.protocol_commit,
+          sourceId: source.id,
+          artifactId: artifact?.id ?? null,
+          artifactSha256: artifact?.sha256 ?? null,
+          quantitativeForensicsRequired,
+        },
+        subjectId: source.id,
+      });
+      started.push({ sourceId: source.id, jobId: job.id });
+    } catch (error) {
+      errors.push({
+        sourceId: source.id,
+        error:
+          error instanceof Error ? error.message : "Unable to start source audit.",
+      });
+    }
+  }
+
+  const newlyActive = new Set([
+    ...activeSourceIds,
+    ...started.map((item) => item.sourceId),
+  ]);
+  const remaining = included.filter(
+    (source) =>
+      !assessedSourceIds.has(source.id) && !newlyActive.has(source.id),
+  ).length;
+
+  await appendAuditEvent(investigationId, "SOURCE_AUDIT_BATCH_STARTED", {
+    started,
+    errors,
+    remaining,
+    batchLimit: 8,
+  });
+
+  return { started, errors, remaining };
+}
+
+export async function startSynthesis(investigationId: string) {
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+  if (investigation.pre_redteam_frozen_at) {
+    throw new Error("The Page-1 dossier is frozen.");
+  }
+  if (investigation.current_phase !== "SYNTHESIS") {
+    throw new Error("AI synthesis is only available during SYNTHESIS.");
+  }
+
+  await ensureNoActiveNonAuditJob(investigationId);
+
+  const [
+    claims,
+    sources,
+    assessments,
+    claimSourceEdges,
+    evidenceChains,
+  ] = await Promise.all([
+    getClaims(investigationId),
+    getSources(investigationId),
+    listCredibilityAssessments(investigationId),
+    listClaimSourceEdges(investigationId),
+    listEvidenceChains(investigationId),
+  ]);
+
+  const included = sources.filter(
+    (source) =>
+      source.screening_decision === "INCLUDED" &&
+      source.included_in_synthesis,
+  );
+  const sourceAssessments = assessments.filter(
+    (assessment) =>
+      assessment.subject_type === "SOURCE" &&
+      assessment.stage === "FIRST_PASS" &&
+      included.some((source) => source.id === assessment.subject_id),
+  );
+
+  if (claims.length < 1 || included.length < 1) {
+    throw new Error("Synthesis requires claims and included evidence.");
+  }
+  if (sourceAssessments.length !== included.length) {
+    throw new Error(
+      "Every included source must complete its credibility audit before synthesis.",
+    );
+  }
+
+  const model = researchModel();
+  const canonicalProtocol = await loadCanonicalInitialProtocol();
+  const requestPayload = {
+    model,
+    reasoning: { effort: "high" },
+    input: [
+      {
+        role: "system",
+        content: CREDIFY_RESEARCH_SYSTEM + "\n\n" + canonicalProtocol,
+      },
+      {
+        role: "user",
+        content: synthesisPrompt({
+          investigation,
+          claims,
+          sources: included,
+          sourceAssessments,
+          claimSourceEdges,
+          evidenceChains,
+        }),
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "credify_first_pass_synthesis",
+        strict: true,
+        schema: SYNTHESIS_SCHEMA,
+      },
+    },
+  };
+
+  const response = await createBackgroundResponse(requestPayload);
+  const job = await persistBackgroundJobOrCancel({
+    investigationId,
+    jobType: "SYNTHESIS",
+    response,
+    fallbackModel: model,
+    status: mapExternalStatus(response.status),
+    requestPayload: {
+      purpose: "first_pass_claim_synthesis",
+      protocolCommit: investigation.protocol_commit,
+      claimIds: claims.map((claim) => claim.id),
+      sourceIds: included.map((source) => source.id),
+      evidenceChainIds: evidenceChains.map(
+        (chain) => String((chain as { id?: unknown }).id ?? ""),
+      ).filter(Boolean),
+    },
+  });
+
+  await appendAuditEvent(investigationId, "AI_SYNTHESIS_STARTED", {
+    jobId: job.id,
+    claimCount: claims.length,
+    sourceCount: included.length,
+  });
+
+  return job;
+}
+
+export async function processScreeningResponse(
+  job: AiJobRecord,
+  response: OpenAIResponse,
+) {
+  const sources = await getSources(job.investigation_id);
+  const output = parseJson<ScreeningOutput>(extractOutputText(response));
+
+  assertExactCoverage(
+    sources.map((source) => source.id),
+    output.decisions.map((decision) => decision.source_id),
+    "Screening",
+  );
+
+  const sourceIds = new Set(sources.map((source) => source.id));
+  for (const decision of output.decisions) {
+    if (
+      decision.potential_duplicate_of_source_id &&
+      (!sourceIds.has(decision.potential_duplicate_of_source_id) ||
+        decision.potential_duplicate_of_source_id === decision.source_id)
+    ) {
+      throw new Error(
+        "Screening returned an invalid duplicate source reference for " +
+          decision.source_id +
+          ".",
+      );
+    }
+  }
+
+  for (const decision of output.decisions) {
+    await updateSource(job.investigation_id, decision.source_id, {
+      screeningDecision: decision.decision,
+      includedInSynthesis: decision.decision === "INCLUDED",
+    });
+  }
+
+  const result = {
+    screeningSummary: output.screening_summary,
+    unresolvedRetrievalQuestions: output.unresolved_retrieval_questions,
+    decisions: output.decisions,
+  };
+
+  await appendAuditEvent(job.investigation_id, "AI_SCREENING_APPLIED", {
+    jobId: job.id,
+    ...result,
+  });
+
+  return result;
+}
+
+export async function processSourceAuditResponse(
+  job: AiJobRecord,
+  response: OpenAIResponse,
+) {
+  if (!job.subject_id) {
+    throw new Error("Source-audit job is missing its source subject ID.");
+  }
+
+  const sources = await getSources(job.investigation_id);
+  const source = sources.find((item) => item.id === job.subject_id);
+  if (!source) throw new Error("Source-audit subject no longer exists.");
+
+  const output = parseJson<SourceAuditOutput>(extractOutputText(response));
+  const artifact = await getArtifactBySourceId(
+    job.investigation_id,
+    source.id,
+  );
+  const quantitativeForensicsRequired = Boolean(
+    artifact && artifactNeedsQuantitativeForensics(artifact.mime_type),
+  );
+  const codeInterpreterUsage = extractCodeInterpreterUsage(response);
+  const urlIdentity = sourceUrlIdentity(source.url_or_identifier);
+
+  if (urlIdentity && output.url_forensics.applicability !== "URL_SOURCE") {
+    throw new Error(
+      "HTTP(S) source audit did not return URL_SOURCE URL forensics.",
+    );
+  }
+
+  if (!urlIdentity && output.url_forensics.applicability !== "NOT_APPLICABLE") {
+    throw new Error(
+      "Non-URL source audit incorrectly claimed URL-source applicability.",
+    );
+  }
+
+  if (!hasWebSearchCall(response)) {
+    throw new Error(
+      "Source audit did not execute the required independent web-search step.",
+    );
+  }
+
+  if (
+    quantitativeForensicsRequired &&
+    (
+      !codeInterpreterUsage.used ||
+      codeInterpreterUsage.completedCallCount < 1 ||
+      codeInterpreterUsage.codePresentCallCount < 1
+    )
+  ) {
+    throw new Error(
+      "Tabular-data source audit did not complete a verifiable Python recomputation step with executable code.",
+    );
+  }
+
+  if (
+    quantitativeForensicsRequired &&
+    output.quantitative_forensics.applicability !== "TABULAR_DATA"
+  ) {
+    throw new Error(
+      "Tabular-data source audit did not return TABULAR_DATA quantitative forensics.",
+    );
+  }
+
+  if (
+    !quantitativeForensicsRequired &&
+    output.quantitative_forensics.applicability !== "NOT_APPLICABLE"
+  ) {
+    throw new Error(
+      "Non-tabular source audit incorrectly claimed quantitative-data applicability.",
+    );
+  }
+
+  const mediaApplicability = artifact
+    ? artifactMediaApplicability(artifact.mime_type)
+    : "NOT_APPLICABLE";
+  const expectedMetadataStatus = artifactMetadataStatus(artifact);
+
+  if (output.media_forensics.applicability !== mediaApplicability) {
+    throw new Error(
+      "Media-forensics applicability did not match the verified artifact type.",
+    );
+  }
+
+  if (
+    expectedMetadataStatus === "AVAILABLE" &&
+    !["AVAILABLE", "PARTIAL"].includes(output.media_forensics.metadata_status)
+  ) {
+    throw new Error(
+      "Media-forensics output ignored metadata that Credify actually extracted.",
+    );
+  }
+
+  if (
+    expectedMetadataStatus !== "AVAILABLE" &&
+    output.media_forensics.metadata_status === "AVAILABLE"
+  ) {
+    throw new Error(
+      "Media-forensics output claimed metadata availability that the artifact record does not support.",
+    );
+  }
+
+  if (
+    output.media_forensics.reverse_image_search_status !== "NOT_APPLICABLE" &&
+    output.media_forensics.reverse_image_search_status !==
+      "NOT_AVAILABLE_IN_CURRENT_TOOLING" &&
+    output.media_forensics.reverse_image_search_status !==
+      "TEXTUAL_CORROBORATION_ONLY"
+  ) {
+    throw new Error(
+      "Media-forensics output claimed an unsupported reverse-image-search state.",
+    );
+  }
+
+  const framingAudit = output.framing_manipulation_audit;
+  const materialFramingIndicators = framingAudit.indicators.filter(
+    (indicator) =>
+      indicator.materiality === "MATERIAL" ||
+      indicator.materiality === "CRITICAL",
+  );
+
+  if (
+    framingAudit.intent_evidence_status === "INTENT_EVIDENCE_PRESENT" &&
+    !framingAudit.indicators.some(
+      (indicator) => indicator.evidence_urls.length > 0,
+    )
+  ) {
+    throw new Error(
+      "Framing audit claimed evidence of manipulative intent without any supporting evidence URL.",
+    );
+  }
+
+  if (
+    framingAudit.truth_status_implication ===
+      "MATERIAL_EVIDENCE_IMPACT_IDENTIFIED" &&
+    materialFramingIndicators.length === 0
+  ) {
+    throw new Error(
+      "Framing audit claimed a material evidentiary impact without any MATERIAL or CRITICAL indicator.",
+    );
+  }
+
+  const ecosystem = output.source_ecosystem_audit;
+
+  if (
+    ecosystem.category === "FACT_CHECK" &&
+    ecosystem.fact_check_audit.applicability !== "FACT_CHECK_SOURCE"
+  ) {
+    throw new Error(
+      "Source classified as FACT_CHECK did not provide the required fact-check methodology audit.",
+    );
+  }
+
+  if (
+    ecosystem.category !== "FACT_CHECK" &&
+    ecosystem.fact_check_audit.applicability !== "NOT_APPLICABLE"
+  ) {
+    throw new Error(
+      "Non-fact-check source incorrectly claimed fact-check audit applicability.",
+    );
+  }
+
+  if (
+    ecosystem.category === "MEDIA_BIAS_PLATFORM" &&
+    ecosystem.media_bias_platform_audit.applicability !==
+      "MEDIA_BIAS_PLATFORM"
+  ) {
+    throw new Error(
+      "Source classified as MEDIA_BIAS_PLATFORM did not provide the required platform-methodology audit.",
+    );
+  }
+
+  if (
+    ecosystem.category !== "MEDIA_BIAS_PLATFORM" &&
+    ecosystem.media_bias_platform_audit.applicability !== "NOT_APPLICABLE"
+  ) {
+    throw new Error(
+      "Non-media-bias source incorrectly claimed media-bias-platform audit applicability.",
+    );
+  }
+
+  if (output.source_id !== source.id) {
+    throw new Error(
+      "Source audit returned the wrong source ID: " + output.source_id + ".",
+    );
+  }
+
+  const toolSources = extractWebSources(response);
+  const trustedUrls = new Set(
+    toolSources.map((item) => normalizeUrl(item.url)),
+  );
+  if (
+    source.url_or_identifier &&
+    /^https?:\/\//i.test(source.url_or_identifier)
+  ) {
+    trustedUrls.add(normalizeUrl(source.url_or_identifier));
+  }
+
+  const validatedIndependenceFingerprint =
+    normalizeDependencyFingerprint(
+      output.independence_fingerprint,
+      trustedUrls,
+    );
+
+  const citationEvidenceUrls = output.citation_audit.citations_examined.flatMap(
+    (citation) => citation.evidence_urls,
+  );
+
+  const identityEvidenceUrls = [
+    ...output.identity_affiliation_audit.authors.flatMap(
+      (author) => author.evidence_urls,
+    ),
+    ...output.identity_affiliation_audit.institution.evidence_urls,
+  ];
+
+  const framingEvidenceUrls =
+    output.framing_manipulation_audit.indicators.flatMap(
+      (indicator) => indicator.evidence_urls,
+    );
+
+  const declaredEvidenceUrls = [
+    ...output.evidence_urls,
+    ...output.methodology_standards.standards_evidence_urls,
+    ...citationEvidenceUrls,
+    ...identityEvidenceUrls,
+    ...framingEvidenceUrls,
+  ];
+
+  const rejectedEvidenceUrls = declaredEvidenceUrls.filter(
+    (url) => !trustedUrls.has(normalizeUrl(url)),
+  );
+  if (rejectedEvidenceUrls.length > 0) {
+    throw new Error(
+      "Source audit referenced URLs not returned by web search: " +
+        rejectedEvidenceUrls.join(", "),
+    );
+  }
+
+  const origin = output.information_origin_url.trim();
+  if (origin && !trustedUrls.has(normalizeUrl(origin))) {
+    throw new Error(
+      "Source audit proposed an information origin that was not verified by web search.",
+    );
+  }
+
+  const evidenceCaptureProvenance = artifact
+    ? {
+        captureType: "HASHED_ARTIFACT" as const,
+        rawBytesCaptured: true,
+        artifactId: artifact.id,
+        sha256: artifact.sha256,
+        byteSize: Number(artifact.byte_size),
+        storageProvider: artifact.storage_provider,
+        captureMethod: artifact.capture_method,
+        observedUrl: source.url_or_identifier,
+        webSearchReturnedSubmittedUrl: false,
+        limitation:
+          "Credify preserved and re-verified the uploaded artifact bytes; this proves artifact identity/integrity, not factual truth.",
+      }
+    : /^https?:\/\//i.test(source.url_or_identifier ?? "")
+      ? {
+          captureType: "WEB_SEARCH_TOOL_REFERENCE" as const,
+          rawBytesCaptured: false,
+          artifactId: null,
+          sha256: null,
+          byteSize: null,
+          storageProvider: null,
+          captureMethod: "OPENAI_RESPONSES_WEB_SEARCH",
+          observedUrl: source.url_or_identifier,
+          webSearchReturnedSubmittedUrl: trustedUrls.has(
+            normalizeUrl(source.url_or_identifier ?? ""),
+          ),
+          limitation:
+            "Credify preserved the URL, search/query provenance, and audit findings but did not capture raw webpage bytes. The live page may change after the investigation; historical-version claims require independent archive/version evidence.",
+        }
+      : {
+          captureType: "LEDGER_REFERENCE_ONLY" as const,
+          rawBytesCaptured: false,
+          artifactId: null,
+          sha256: null,
+          byteSize: null,
+          storageProvider: null,
+          captureMethod: "SOURCE_LEDGER",
+          observedUrl: source.url_or_identifier,
+          webSearchReturnedSubmittedUrl: false,
+          limitation:
+            "No raw artifact bytes or web-page byte snapshot were captured for this source identifier.",
+        };
+
+  const scholarlyDoiCandidate = [
+    source.url_or_identifier,
+    origin || null,
+    ...output.evidence_urls,
+  ].find((value) => Boolean(extractDoi(value)));
+
+  const scholarlyRegistryVerification = await verifyCrossrefStatus(
+    scholarlyDoiCandidate ?? null,
+  );
+
+  if (
+    scholarlyRegistryVerification.applicable &&
+    scholarlyRegistryVerification.status === "VERIFIED" &&
+    scholarlyRegistryVerification.retracted &&
+    !/retract/i.test(output.correction_retraction_status)
+  ) {
+    throw new Error(
+      "Crossref/Retraction Watch reports a registered retraction, but the model audit did not acknowledge it.",
+    );
+  }
+
+  const correctionRetractionStatus =
+    scholarlyRegistryVerification.applicable &&
+    scholarlyRegistryVerification.status === "VERIFIED"
+      ? output.correction_retraction_status +
+        (scholarlyRegistryVerification.retracted
+          ? " | Crossref/Retraction Watch: REGISTERED RETRACTION."
+          : scholarlyRegistryVerification.updates.length > 0
+            ? " | Crossref: registered post-publication update(s): " +
+              scholarlyRegistryVerification.updates
+                .map((update) => update.type)
+                .join(", ") +
+              "."
+            : " | Crossref: no registered update returned at check time; this is not proof that no correction or concern exists.")
+      : output.correction_retraction_status;
+
+  const registeredFunderSummary =
+    scholarlyRegistryVerification.status === "VERIFIED" &&
+    scholarlyRegistryVerification.funders.length > 0
+      ? scholarlyRegistryVerification.funders
+          .map((funder) => {
+            const awards =
+              funder.awards.length > 0
+                ? " [award(s): " + funder.awards.join(", ") + "]"
+                : "";
+            return funder.name + awards;
+          })
+          .join("; ")
+      : null;
+
+  const fundingConflictsStatus = registeredFunderSummary
+    ? output.funding_conflicts +
+      " | Crossref deposited funder metadata: " +
+      registeredFunderSummary +
+      ". Registry funding metadata is disclosure evidence, not proof of a conflict or proof that no other funding/conflict exists."
+    : output.funding_conflicts;
+
+  const assessment = await upsertCredibilityAssessment({
+    investigationId: job.investigation_id,
+    subjectType: "SOURCE",
+    subjectId: source.id,
+    stage: "FIRST_PASS",
+    dimensionScores: output.dimension_scores,
+    criticalFailures: output.critical_failures,
+    rationale: {
+      overall: output.overall_rationale,
+      authorExpertise: output.author_expertise_summary,
+      institutionalAnalysis: output.institutional_analysis,
+      identityAffiliationAudit: output.identity_affiliation_audit,
+      framingManipulationAudit: output.framing_manipulation_audit,
+      sourceEcosystemAudit: output.source_ecosystem_audit,
+      independenceFingerprint: validatedIndependenceFingerprint,
+      methodology: output.methodology_summary,
+      methodologyStandards: output.methodology_standards,
+      citationIntegrity: output.citation_integrity_summary,
+      citationAudit: output.citation_audit,
+      dataIntegrity: output.data_integrity_summary,
+      quantitativeForensics: output.quantitative_forensics,
+      quantitativeToolVerification: {
+        required: quantitativeForensicsRequired,
+        used: codeInterpreterUsage.used,
+        callCount: codeInterpreterUsage.callCount,
+        completedCallCount: codeInterpreterUsage.completedCallCount,
+        codePresentCallCount: codeInterpreterUsage.codePresentCallCount,
+        containerIds: codeInterpreterUsage.containerIds,
+        calls: codeInterpreterUsage.calls,
+      },
+      context: output.historical_cultural_temporal_context,
+      temporalVerification: output.temporal_verification,
+      urlForensics: output.url_forensics,
+      urlIdentityVerification: urlIdentity,
+      mediaAuthenticity: output.media_digital_authenticity_summary,
+      mediaForensics: output.media_forensics,
+      mediaVerification: {
+        applicability: mediaApplicability,
+        metadataStatusFromArtifact: expectedMetadataStatus,
+        reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
+      },
+      scholarlyRegistryVerification,
+      evidenceCaptureProvenance,
+    },
+    evidenceRefs: [...new Set(declaredEvidenceUrls)],
+  });
+
+  await updateSource(job.investigation_id, source.id, {
+    author: output.author.trim() || null,
+    institution: output.institution.trim() || null,
+    primaryOrSecondary: output.primary_or_secondary,
+    provenanceStatus: output.provenance_status,
+    retrievalStatus: output.retrieval_status,
+    peerReviewStatus: output.peer_review_status,
+    correctionRetractionStatus,
+    fundingConflicts: fundingConflictsStatus,
+    informationOriginId: origin ? normalizeUrl(origin) : null,
+    informationOriginStatus: output.information_origin_status,
+    independenceFingerprint: validatedIndependenceFingerprint,
+    credibilityScore: Number(assessment.total_score),
+  });
+
+  const queries = extractWebQueries(response);
+  for (const query of queries) {
+    await createSearchLog({
+      investigationId: job.investigation_id,
+      claimIds: [],
+      databaseOrPlatform: "OpenAI Responses web_search / Source audit",
+      queryExact: query,
+      resultCount: toolSources.length,
+      notes: "Search activity for source " + source.id + ".",
+    });
+  }
+
+  const result = {
+    sourceId: source.id,
+    totalScore: Number(assessment.total_score),
+    criticalFailures: output.critical_failures,
+    provenanceStatus: output.provenance_status,
+    informationOriginId: origin ? normalizeUrl(origin) : null,
+    informationOriginStatus: output.information_origin_status,
+    independenceFingerprint: validatedIndependenceFingerprint,
+    evidenceUrls: output.evidence_urls,
+    methodologyStandards: output.methodology_standards,
+    citationAudit: output.citation_audit,
+    webQueries: queries,
+    quantitativeForensics: output.quantitative_forensics,
+    mediaForensics: output.media_forensics,
+    mediaVerification: {
+      applicability: mediaApplicability,
+      metadataStatusFromArtifact: expectedMetadataStatus,
+      reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
+    },
+    scholarlyRegistryVerification,
+    evidenceCaptureProvenance,
+    identityAffiliationAudit: output.identity_affiliation_audit,
+    framingManipulationAudit: output.framing_manipulation_audit,
+    sourceEcosystemAudit: output.source_ecosystem_audit,
+    quantitativeToolVerification: {
+      required: quantitativeForensicsRequired,
+      used: codeInterpreterUsage.used,
+      callCount: codeInterpreterUsage.callCount,
+      completedCallCount: codeInterpreterUsage.completedCallCount,
+      codePresentCallCount: codeInterpreterUsage.codePresentCallCount,
+      containerIds: codeInterpreterUsage.containerIds,
+      calls: codeInterpreterUsage.calls,
+    },
+  };
+
+  await appendAuditEvent(job.investigation_id, "SOURCE_CREDIBILITY_AUDIT_APPLIED", {
+    jobId: job.id,
+    ...result,
+  });
+
+  return result;
+}
+
+export async function processSynthesisResponse(
+  job: AiJobRecord,
+  response: OpenAIResponse,
+) {
+  const [claims, sources] = await Promise.all([
+    getClaims(job.investigation_id),
+    getSources(job.investigation_id),
+  ]);
+  const included = sources.filter(
+    (source) =>
+      source.screening_decision === "INCLUDED" &&
+      source.included_in_synthesis,
+  );
+  const sourceById = new Map(included.map((source) => [source.id, source]));
+  const output = parseJson<SynthesisOutput>(extractOutputText(response));
+
+  assertExactCoverage(
+    claims.map((claim) => claim.id),
+    output.claims.map((claim) => claim.claim_id),
+    "Synthesis",
+  );
+
+  for (const claimOutput of output.claims) {
+    if (
+      claimOutput.temporal_alignment.alignment === "MISALIGNED" &&
+      ["VERIFIED", "HIGH_CONFIDENCE"].includes(claimOutput.first_pass_status)
+    ) {
+      throw new Error(
+        "Synthesis cannot mark a temporally misaligned claim as VERIFIED or HIGH_CONFIDENCE.",
+      );
+    }
+
+    const allRefs = [
+      ...claimOutput.evidence_source_ids,
+      ...claimOutput.counterevidence_source_ids,
+    ];
+    const invalid = allRefs.filter((id) => !sourceById.has(id));
+    if (invalid.length > 0) {
+      throw new Error(
+        "Synthesis referenced unknown or excluded source IDs: " +
+          [...new Set(invalid)].join(", "),
+      );
+    }
+  }
+
+  const saturation = output.research_saturation;
+
+  if (
+    saturation.status === "CONVERGED" &&
+    saturation.convergence_basis.length === 0
+  ) {
+    throw new Error(
+      "Research saturation cannot be CONVERGED without a documented convergence basis.",
+    );
+  }
+
+  if (
+    saturation.status === "CONVERGED" &&
+    saturation.reasons_to_continue.length > 0
+  ) {
+    throw new Error(
+      "Research saturation cannot be CONVERGED while reasons_to_continue remain.",
+    );
+  }
+
+  if (
+    saturation.status === "CONTINUE_REQUIRED" &&
+    saturation.reasons_to_continue.length === 0
+  ) {
+    throw new Error(
+      "CONTINUE_REQUIRED research saturation must identify at least one reason to continue.",
+    );
+  }
+
+  if (
+    saturation.status === "PROVISIONAL_STOP" &&
+    saturation.residual_gaps.length === 0
+  ) {
+    throw new Error(
+      "PROVISIONAL_STOP must preserve at least one explicit residual gap.",
+    );
+  }
+
+  const unresolvedOriginExists = included.some(
+    (source) => source.information_origin_status === "UNRESOLVED",
+  );
+  const outputConflictExists = output.claims.some(
+    (claimOutput) => claimOutput.unresolved_material_conflict,
+  );
+
+  if (
+    saturation.status === "CONVERGED" &&
+    (unresolvedOriginExists || outputConflictExists)
+  ) {
+    throw new Error(
+      "Research cannot be marked CONVERGED while material conflict or information-origin uncertainty remains.",
+    );
+  }
+
+  const claimById = new Map(claims.map((claim) => [claim.id, claim]));
+
+  const investigationMatrixScore = validateAndTotalDimensionScores(
+    output.investigation_dimension_scores,
+  );
+
+  const preparedClaims = output.claims.map((claimOutput) => {
+    const claim = claimById.get(claimOutput.claim_id);
+    if (!claim) {
+      throw new Error("Synthesis claim disappeared during processing.");
+    }
+
+    const supportingSources = claimOutput.evidence_source_ids
+      .map((id) => sourceById.get(id))
+      .filter((source) => Boolean(source));
+    const primaryRecovered = supportingSources.some(
+      (source) => source?.primary_or_secondary === "PRIMARY",
+    );
+
+    const claimMatrixScore = validateAndTotalDimensionScores(
+      claimOutput.dimension_scores,
+    );
+
+    validateFirstPassConfidence({
+      status: claimOutput.first_pass_status,
+      confidence: claimOutput.confidence,
+      requiresPrimaryEvidence: claim.requires_primary_evidence,
+      primaryEvidenceRecovered: primaryRecovered,
+      unresolvedMaterialConflict:
+        claimOutput.unresolved_material_conflict,
+      criticalFailure: claimOutput.critical_failure,
+      temporalAlignment: claimOutput.temporal_alignment.alignment,
+      credibilityMatrixScore: claimMatrixScore,
+    });
+
+    return {
+      claim,
+      claimOutput,
+      primaryRecovered,
+      claimMatrixScore,
+    };
+  });
+
+  const synthesizedPrimaryGaps = preparedClaims.filter(
+    ({ claim, primaryRecovered }) =>
+      claim.requires_primary_evidence && !primaryRecovered,
+  );
+
+  if (
+    saturation.status === "CONVERGED" &&
+    synthesizedPrimaryGaps.length > 0
+  ) {
+    throw new Error(
+      "Research cannot be marked CONVERGED while claims requiring primary evidence still lack recovered primary support.",
+    );
+  }
+
+  const requiredReasonCodes = new Set<string>();
+  if (synthesizedPrimaryGaps.length > 0) {
+    requiredReasonCodes.add("MISSING_REQUIRED_PRIMARY_EVIDENCE");
+  }
+  if (outputConflictExists) {
+    requiredReasonCodes.add("UNRESOLVED_MATERIAL_CONFLICT");
+  }
+  if (unresolvedOriginExists) {
+    requiredReasonCodes.add("UNRESOLVED_PROVENANCE_OR_ORIGIN");
+  }
+
+  for (const requiredReason of requiredReasonCodes) {
+    if (!saturation.reasons_to_continue.includes(requiredReason as never)) {
+      throw new Error(
+        "Research saturation omitted a known reason to continue: " +
+          requiredReason +
+          ".",
+      );
+    }
+  }
+
+  if (
+    saturation.status === "CONVERGED" &&
+    (saturation.residual_gaps.length > 0 ||
+      saturation.additional_searches_needed.length > 0)
+  ) {
+    throw new Error(
+      "CONVERGED research saturation cannot retain residual gaps or additional searches.",
+    );
+  }
+
+  if (
+    saturation.status === "CONTINUE_REQUIRED" &&
+    saturation.additional_searches_needed.length === 0
+  ) {
+    throw new Error(
+      "CONTINUE_REQUIRED must identify at least one additional search or evidence-acquisition step.",
+    );
+  }
+
+  if (!saturation.stop_rationale.trim()) {
+    throw new Error(
+      "Research saturation must include a non-empty stop rationale.",
+    );
+  }
+
+  const applied: Array<{
+    claimId: string;
+    confidence: number;
+    totalScore: number;
+  }> = [];
+
+  for (const prepared of preparedClaims) {
+    const { claim, claimOutput, primaryRecovered, claimMatrixScore } =
+      prepared;
+
+    const assessment = await upsertCredibilityAssessment({
+      investigationId: job.investigation_id,
+      subjectType: "CLAIM",
+      subjectId: claim.id,
+      stage: "FIRST_PASS",
+      dimensionScores: claimOutput.dimension_scores,
+      criticalFailures: claimOutput.critical_failure
+        ? ["Claim-level critical failure identified during synthesis."]
+        : [],
+      rationale: {
+        reasoning: claimOutput.reasoning,
+        temporalAlignment: claimOutput.temporal_alignment,
+      },
+      evidenceRefs: [
+        ...claimOutput.evidence_source_ids,
+        ...claimOutput.counterevidence_source_ids,
+      ],
+    });
+
+    await updateClaim(job.investigation_id, claim.id, {
+      firstPassStatus: claimOutput.first_pass_status,
+      firstPassConfidence: claimOutput.confidence,
+      primaryEvidenceRecovered:
+        claim.requires_primary_evidence ? primaryRecovered : false,
+      criticalFailure: claimOutput.critical_failure,
+      unresolvedMaterialConflict: claimOutput.unresolved_material_conflict,
+      knownUnknowns: claimOutput.known_unknowns,
+      additionalEvidenceNeeded: claimOutput.additional_evidence_needed,
+    });
+
+    for (const sourceId of claimOutput.evidence_source_ids) {
+      await linkClaimSource({
+        investigationId: job.investigation_id,
+        claimId: claim.id,
+        sourceId,
+        relationship: "SUPPORTS",
+        notes: "Confirmed during Page-1 synthesis.",
+      });
+    }
+
+    for (const sourceId of claimOutput.counterevidence_source_ids) {
+      await linkClaimSource({
+        investigationId: job.investigation_id,
+        claimId: claim.id,
+        sourceId,
+        relationship: "CONTRADICTS",
+        notes: "Confirmed during Page-1 synthesis.",
+      });
+    }
+
+    applied.push({
+      claimId: claim.id,
+      confidence: claimOutput.confidence,
+      totalScore: claimMatrixScore,
+    });
+
+    if (Number(assessment.total_score) !== claimMatrixScore) {
+      throw new Error(
+        "Persisted claim credibility matrix diverged from prevalidated score.",
+      );
+    }
+  }
+
+  await setResearchSaturation(job.investigation_id, {
+    status: saturation.status,
+    payload: saturation,
+  });
+
+  const investigationAssessment = await upsertCredibilityAssessment({
+    investigationId: job.investigation_id,
+    subjectType: "INVESTIGATION",
+    subjectId: job.investigation_id,
+    stage: "FIRST_PASS",
+    dimensionScores: output.investigation_dimension_scores,
+    criticalFailures: output.investigation_critical_failures,
+    rationale: {
+      overall: output.investigation_rationale,
+      researchSaturation: output.research_saturation,
+      basis:
+        "Investigation-level matrix evaluates the integrity and resilience of the full evidentiary system; it is not an arithmetic average of source or claim scores.",
+    },
+    evidenceRefs: included.map((source) => source.id),
+  });
+
+  if (
+    Number(investigationAssessment.total_score) !== investigationMatrixScore
+  ) {
+    throw new Error(
+      "Persisted investigation credibility matrix diverged from prevalidated score.",
+    );
+  }
+
+  const result = {
+    executiveFinding: output.executive_finding,
+    researchSaturation: output.research_saturation,
+    strongestSupportingEvidence: output.strongest_supporting_evidence,
+    strongestContraryEvidence: output.strongest_contrary_evidence,
+    counterHypothesesTested: output.counter_hypotheses_tested,
+    knownUnknowns: output.known_unknowns,
+    investigationMatrix: {
+      totalScore: Number(investigationAssessment.total_score),
+      dimensionScores: output.investigation_dimension_scores,
+      criticalFailures: output.investigation_critical_failures,
+      rationale: output.investigation_rationale,
+    },
+    appliedClaims: applied,
+  };
+
+  await appendAuditEvent(job.investigation_id, "AI_SYNTHESIS_APPLIED", {
+    jobId: job.id,
+    ...result,
+  });
+
+  return result;
+}

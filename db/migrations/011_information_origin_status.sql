@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE sources
+  ADD COLUMN IF NOT EXISTS information_origin_status TEXT NOT NULL DEFAULT 'UNASSESSED';
+
+COMMIT;
