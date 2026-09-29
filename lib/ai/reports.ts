@@ -264,6 +264,15 @@ Preserve claim-level uncertainty. Distinguish source credibility score from clai
 confidence. Do not allow an aggregate score to conceal critical failures. Make
 source independence and information-origin issues explicit.
 
+OVERALL CREDIBILITY MATRIX:
+- credibility_matrix must report the persisted INVESTIGATION credibility assessment
+  for the relevant stage, including its server-computed /100 total, dimension-level
+  scores/rationales, and critical failures.
+- For PRE_REDTEAM use the FIRST_PASS investigation assessment.
+- For FINAL use the FINAL investigation assessment created after reconciliation.
+- Never invent or recompute an overall score in report prose and never substitute an
+  average of source scores, claim scores, confidence values, or reviewer votes.
+
 CITATION CONTRACT:
 - Every evidence-derived factual statement must cite the exact source ledger ID in
   square brackets, for example [SRC-123].
