@@ -341,6 +341,86 @@ export const SOURCE_AUDIT_SCHEMA = {
       additionalProperties: false,
     },
     citation_integrity_summary: { type: "string" },
+    citation_audit: {
+      type: "object",
+      properties: {
+        applicability: {
+          type: "string",
+          enum: [
+            "NOT_APPLICABLE",
+            "CITATIONS_PRESENT",
+            "CITATIONS_NOT_ACCESSIBLE",
+          ],
+        },
+        citations_examined: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              cited_work: { type: "string" },
+              cited_locator: { type: "string" },
+              proposition_at_issue: { type: "string" },
+              support_status: {
+                type: "string",
+                enum: [
+                  "SUPPORTS",
+                  "PARTIAL_SUPPORT",
+                  "DOES_NOT_SUPPORT",
+                  "CONTRADICTS",
+                  "UNVERIFIED",
+                ],
+              },
+              primary_or_secondary: {
+                type: "string",
+                enum: ["PRIMARY", "SECONDARY", "UNKNOWN"],
+              },
+              correction_retraction_note: { type: "string" },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+              rationale: { type: "string" },
+            },
+            required: [
+              "cited_work",
+              "cited_locator",
+              "proposition_at_issue",
+              "support_status",
+              "primary_or_secondary",
+              "correction_retraction_note",
+              "evidence_urls",
+              "rationale",
+            ],
+            additionalProperties: false,
+          },
+        },
+        citation_laundering_or_circularity: {
+          type: "array",
+          items: { type: "string" },
+        },
+        quote_context_issues: {
+          type: "array",
+          items: { type: "string" },
+        },
+        missing_primary_source_concerns: {
+          type: "array",
+          items: { type: "string" },
+        },
+        unresolved_citation_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "applicability",
+        "citations_examined",
+        "citation_laundering_or_circularity",
+        "quote_context_issues",
+        "missing_primary_source_concerns",
+        "unresolved_citation_questions",
+      ],
+      additionalProperties: false,
+    },
     data_integrity_summary: { type: "string" },
     quantitative_forensics: {
       type: "object",
@@ -547,6 +627,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "methodology_summary",
     "methodology_standards",
     "citation_integrity_summary",
+    "citation_audit",
     "data_integrity_summary",
     "quantitative_forensics",
     "historical_cultural_temporal_context",
