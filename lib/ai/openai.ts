@@ -141,6 +141,8 @@ export function extractCodeInterpreterUsage(response: OpenAIResponse) {
   return {
     used: calls.length > 0,
     callCount: calls.length,
+    completedCallCount: calls.filter((call) => call.status === "completed").length,
+    codePresentCallCount: calls.filter((call) => Boolean(call.codeSha256)).length,
     containerIds: [...containerIds],
     calls,
   };
