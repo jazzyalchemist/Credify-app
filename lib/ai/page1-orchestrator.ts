@@ -687,9 +687,16 @@ export async function processSourceAuditResponse(
     );
   }
 
-  if (quantitativeForensicsRequired && !codeInterpreterUsage.used) {
+  if (
+    quantitativeForensicsRequired &&
+    (
+      !codeInterpreterUsage.used ||
+      codeInterpreterUsage.completedCallCount < 1 ||
+      codeInterpreterUsage.codePresentCallCount < 1
+    )
+  ) {
     throw new Error(
-      "Tabular-data source audit did not execute the required Python recomputation step.",
+      "Tabular-data source audit did not complete a verifiable Python recomputation step with executable code.",
     );
   }
 
@@ -805,7 +812,10 @@ export async function processSourceAuditResponse(
         required: quantitativeForensicsRequired,
         used: codeInterpreterUsage.used,
         callCount: codeInterpreterUsage.callCount,
+        completedCallCount: codeInterpreterUsage.completedCallCount,
+        codePresentCallCount: codeInterpreterUsage.codePresentCallCount,
         containerIds: codeInterpreterUsage.containerIds,
+        calls: codeInterpreterUsage.calls,
       },
       context: output.historical_cultural_temporal_context,
       mediaAuthenticity: output.media_digital_authenticity_summary,
@@ -865,7 +875,10 @@ export async function processSourceAuditResponse(
       required: quantitativeForensicsRequired,
       used: codeInterpreterUsage.used,
       callCount: codeInterpreterUsage.callCount,
+      completedCallCount: codeInterpreterUsage.completedCallCount,
+      codePresentCallCount: codeInterpreterUsage.codePresentCallCount,
       containerIds: codeInterpreterUsage.containerIds,
+      calls: codeInterpreterUsage.calls,
     },
   };
 
