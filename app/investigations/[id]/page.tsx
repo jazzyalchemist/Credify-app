@@ -7,6 +7,7 @@ import { AddClaimForm } from "@/components/AddClaimForm";
 import { AddSourceForm } from "@/components/AddSourceForm";
 import { ClaimAuditEditor } from "@/components/ClaimAuditEditor";
 import { Metric } from "@/components/Metric";
+import { InvestigationMatrixDelta } from "@/components/InvestigationMatrixDelta";
 import { PhaseRail } from "@/components/PhaseRail";
 import { RedTeamPanel } from "@/components/RedTeamPanel";
 import { SourceAuditEditor } from "@/components/SourceAuditEditor";
@@ -14,6 +15,7 @@ import { WorkspaceControls } from "@/components/WorkspaceControls";
 import { databaseConfigured } from "@/lib/db/client";
 import { listAiJobs } from "@/lib/db/ai-jobs";
 import { listArtifacts } from "@/lib/db/artifacts";
+import { listCredibilityAssessments } from "@/lib/db/credibility";
 import {
   listChallenges,
   listReconciliations,
@@ -80,6 +82,7 @@ export default async function InvestigationPage({
     challenges,
     reconciliations,
     artifacts,
+    credibilityAssessments,
   ] = await Promise.all([
     getClaims(id),
     getSources(id),
@@ -89,6 +92,7 @@ export default async function InvestigationPage({
     listChallenges(id),
     listReconciliations(id),
     listArtifacts(id),
+    listCredibilityAssessments(id),
   ]);
 
   const currentIndex = PHASES.indexOf(investigation.current_phase);
@@ -110,6 +114,23 @@ export default async function InvestigationPage({
         currentPhase={investigation.current_phase}
         phaseCheckpoints={investigation.phase_checkpoints ?? {}}
         preRedTeamFrozen={frozen}
+      />
+
+      <InvestigationMatrixDelta
+        firstPass={
+          credibilityAssessments.find(
+            (assessment) =>
+              assessment.subject_type === "INVESTIGATION" &&
+              assessment.stage === "FIRST_PASS",
+          ) ?? null
+        }
+        final={
+          credibilityAssessments.find(
+            (assessment) =>
+              assessment.subject_type === "INVESTIGATION" &&
+              assessment.stage === "FINAL",
+          ) ?? null
+        }
       />
 
       <section className="workspaceGrid">
