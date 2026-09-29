@@ -538,6 +538,138 @@ export const SOURCE_AUDIT_SCHEMA = {
     peer_review_status: { type: "string" },
     correction_retraction_status: { type: "string" },
     funding_conflicts: { type: "string" },
+    funding_conflict_audit: {
+      type: "object",
+      properties: {
+        disclosure_status: {
+          type: "string",
+          enum: [
+            "DISCLOSURE_PRESENT",
+            "NO_DISCLOSURE_FOUND",
+            "DISCLOSURE_INACCESSIBLE",
+            "NOT_APPLICABLE",
+            "UNKNOWN",
+          ],
+        },
+        disclosure_text_finding: { type: "string" },
+        disclosed_funders: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              grant_or_award: { type: "string" },
+              stated_role: { type: "string" },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: [
+              "name",
+              "grant_or_award",
+              "stated_role",
+              "evidence_urls",
+            ],
+            additionalProperties: false,
+          },
+        },
+        author_financial_interests: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              person_or_entity: { type: "string" },
+              relationship_type: {
+                type: "string",
+                enum: [
+                  "EMPLOYMENT",
+                  "CONSULTING",
+                  "EQUITY",
+                  "PATENT",
+                  "BOARD_ROLE",
+                  "HONORARIA",
+                  "FUNDING",
+                  "OTHER",
+                ],
+              },
+              description: { type: "string" },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: [
+              "person_or_entity",
+              "relationship_type",
+              "description",
+              "evidence_urls",
+            ],
+            additionalProperties: false,
+          },
+        },
+        sponsor_role: {
+          type: "object",
+          properties: {
+            study_design: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            data_collection: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            analysis_interpretation: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            manuscript_preparation: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            publication_approval_or_veto: {
+              type: "string",
+              enum: ["YES", "NO", "UNKNOWN", "NOT_APPLICABLE"],
+            },
+            finding: { type: "string" },
+          },
+          required: [
+            "study_design",
+            "data_collection",
+            "analysis_interpretation",
+            "manuscript_preparation",
+            "publication_approval_or_veto",
+            "finding",
+          ],
+          additionalProperties: false,
+        },
+        possible_undisclosed_conflict_signals: {
+          type: "array",
+          items: { type: "string" },
+        },
+        evidence_urls: {
+          type: "array",
+          items: { type: "string" },
+        },
+        interpretation: { type: "string" },
+        unresolved_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "disclosure_status",
+        "disclosure_text_finding",
+        "disclosed_funders",
+        "author_financial_interests",
+        "sponsor_role",
+        "possible_undisclosed_conflict_signals",
+        "evidence_urls",
+        "interpretation",
+        "unresolved_questions",
+      ],
+      additionalProperties: false,
+    },
     methodology_summary: { type: "string" },
     methodology_standards: {
       type: "object",
@@ -928,6 +1060,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "peer_review_status",
     "correction_retraction_status",
     "funding_conflicts",
+    "funding_conflict_audit",
     "methodology_summary",
     "methodology_standards",
     "citation_integrity_summary",
