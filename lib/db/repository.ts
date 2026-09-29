@@ -12,6 +12,7 @@ import type {
 } from "@/lib/protocol/types";
 import { canEnterPhase } from "@/lib/protocol/gates";
 import { getLatestReport } from "./reports";
+import { rebuildEvidenceChains } from "./evidence";
 
 export interface CreateInvestigationInput {
   title: string;
@@ -461,6 +462,13 @@ export async function updateSource(
     WHERE id = ${sourceId} AND investigation_id = ${investigationId}
     RETURNING *
   `;
+
+  if (
+    input.informationOriginStatus !== undefined ||
+    input.informationOriginId !== undefined
+  ) {
+    await rebuildEvidenceChains(investigationId);
+  }
 
   await touchInvestigation(investigationId);
   await appendAuditEvent(investigationId, "SOURCE_UPDATED", {
