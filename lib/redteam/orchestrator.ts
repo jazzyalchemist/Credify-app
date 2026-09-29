@@ -20,6 +20,7 @@ import {
   setRedTeamReviewStatus,
 } from "@/lib/db/redteam";
 import {
+  cancelBackgroundResponse,
   createBackgroundResponse,
   extractOutputText,
   extractWebQueries,
@@ -511,20 +512,51 @@ export async function startReconciliation(investigationId: string) {
   };
 
   const response = await createBackgroundResponse(requestPayload);
-  const job = await createAiJob({
-    investigationId,
-    jobType: "RECONCILIATION",
-    externalResponseId: response.id,
-    model: response.model || model,
-    status: mapExternalStatus(response.status),
-    requestPayload: {
-      purpose: "blind_reconciliation",
-      protocolCommit: investigation.protocol_commit,
-      dossierSha256: investigation.pre_redteam_snapshot_hash,
-      challengeIds: challenges.map((challenge) => challenge.id),
-      claimIds: claims.map((claim) => claim.id),
-    },
-  });
+
+  let job: AiJobRecord;
+  try {
+    job = await createAiJob({
+      investigationId,
+      jobType: "RECONCILIATION",
+      externalResponseId: response.id,
+      model: response.model || model,
+      status: mapExternalStatus(response.status),
+      requestPayload: {
+        purpose: "blind_reconciliation",
+        protocolCommit: investigation.protocol_commit,
+        dossierSha256: investigation.pre_redteam_snapshot_hash,
+        challengeIds: challenges.map((challenge) => challenge.id),
+        claimIds: claims.map((claim) => claim.id),
+      },
+    });
+  } catch (error) {
+    let cancellationError: string | null = null;
+    try {
+      await cancelBackgroundResponse(response.id);
+    } catch (cancelError) {
+      cancellationError =
+        cancelError instanceof Error
+          ? cancelError.message
+          : "Unable to cancel orphaned background response.";
+    }
+
+    await appendAuditEvent(
+      investigationId,
+      "RECONCILIATION_JOB_PERSISTENCE_REJECTED",
+      {
+        responseId: response.id,
+        cancellationError,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to persist reconciliation job.",
+      },
+    );
+
+    throw new Error(
+      "A reconciliation run could not be registered, usually because another nonfailed reconciliation already exists. The unowned background response was cancelled when possible.",
+    );
+  }
 
   await appendAuditEvent(investigationId, "RECONCILIATION_JOB_STARTED", {
     jobId: job.id,
