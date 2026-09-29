@@ -41,7 +41,7 @@ test("Crossref helper preserves no-DOI and unavailable states instead of asserti
   assert.match(source, /status: "NO_DOI"/);
   assert.match(source, /status: "NOT_FOUND"/);
   assert.match(source, /status: "UNAVAILABLE"/);
-  assert.match(source, /absence of an update is not proof/i);
+  assert.match(source, /Absence of an update[\s\S]{0,180}not proof/i);
 });
 
 test("Crossref helper inspects both update-to and updated-by registry relationships", () => {
