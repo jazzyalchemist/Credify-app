@@ -21,14 +21,17 @@ import {
   createRedTeamReview,
   failOrphanedRedTeamReviews,
   listChallenges,
+  listRedTeamReviews,
   setRedTeamReviewStatus,
 } from "@/lib/db/redteam";
 import {
   cancelBackgroundResponse,
   createBackgroundResponse,
+  extractCodeInterpreterUsage,
   extractOutputText,
   extractWebQueries,
   extractWebSources,
+  hasWebSearchCall,
   researchModel,
   type OpenAIResponse,
 } from "@/lib/ai/openai";
@@ -43,6 +46,9 @@ import {
   REDTEAM_REVIEW_SCHEMA,
 } from "./schemas";
 import { REDTEAM_ROLES } from "./roles";
+import { listArtifacts } from "@/lib/db/artifacts";
+import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
+import { artifactNeedsQuantitativeForensics } from "@/lib/artifacts/content";
 import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
 import {
   loadCanonicalReconciliationProtocol,
@@ -196,6 +202,84 @@ function frozenSourceUrls(snapshot: unknown): Set<string> {
   }
 
   return urls;
+}
+
+function frozenArtifactManifest(snapshot: unknown) {
+  const manifest = new Map<string, string>();
+  if (!snapshot || typeof snapshot !== "object") return manifest;
+
+  const values = Array.isArray(
+    (snapshot as { artifacts?: unknown[] }).artifacts,
+  )
+    ? (snapshot as { artifacts: unknown[] }).artifacts
+    : [];
+
+  for (const value of values) {
+    if (!value || typeof value !== "object") continue;
+    const id = (value as { id?: unknown }).id;
+    const sha256 = (value as { sha256?: unknown }).sha256;
+    if (typeof id === "string" && typeof sha256 === "string") {
+      manifest.set(id, sha256);
+    }
+  }
+
+  return manifest;
+}
+
+async function loadFrozenArtifactContext(
+  investigationId: string,
+  snapshot: unknown,
+) {
+  const artifacts = await listArtifacts(investigationId);
+  const frozenManifest = frozenArtifactManifest(snapshot);
+
+  if (artifacts.length !== frozenManifest.size) {
+    throw new Error(
+      "Current artifact ledger does not match the frozen dossier artifact count.",
+    );
+  }
+
+  const contentParts: unknown[] = [];
+  for (const artifact of artifacts) {
+    const frozenHash = frozenManifest.get(artifact.id);
+    if (!frozenHash || frozenHash !== artifact.sha256) {
+      throw new Error(
+        "Artifact " +
+          artifact.id +
+          " does not match the SHA-256 recorded in the frozen dossier.",
+      );
+    }
+
+    contentParts.push({
+      type: "input_text",
+      text:
+        "FROZEN ARTIFACT MAPPING: " +
+        artifact.id +
+        " -> source " +
+        (artifact.source_id ?? "unlinked") +
+        " | filename=" +
+        artifact.original_filename +
+        " | mime=" +
+        artifact.mime_type +
+        " | sha256=" +
+        artifact.sha256,
+    });
+    contentParts.push(await loadVerifiedArtifactInputPart(artifact));
+  }
+
+  return {
+    artifacts,
+    contentParts,
+    hasTabularArtifacts: artifacts.some((artifact) =>
+      artifactNeedsQuantitativeForensics(artifact.mime_type),
+    ),
+    hashes: artifacts.map((artifact) => ({
+      id: artifact.id,
+      sha256: artifact.sha256,
+      sourceId: artifact.source_id,
+      mimeType: artifact.mime_type,
+    })),
+  };
 }
 
 function mapExternalStatus(status: string) {
