@@ -1,8 +1,5 @@
 import type { AiJobRecord } from "@/lib/db/ai-jobs";
-import {
-  createAiJob,
-  listAiJobs,
-} from "@/lib/db/ai-jobs";
+import { listAiJobs } from "@/lib/db/ai-jobs";
 import {
   appendAuditEvent,
   getClaims,
@@ -28,6 +25,7 @@ import {
 } from "./openai";
 import { CREDIFY_RESEARCH_SYSTEM } from "./prompts";
 import { REPORT_SCHEMA } from "./schemas";
+import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
 import {
   loadCanonicalInitialProtocol,
   loadCanonicalReconciliationProtocol,
@@ -345,12 +343,12 @@ export async function startReport(
   };
 
   const response = await createBackgroundResponse(requestPayload);
-  const job = await createAiJob({
+  const job = await persistBackgroundJobOrCancel({
     investigationId,
     jobType:
       stage === "PRE_REDTEAM" ? "PRE_REDTEAM_REPORT" : "FINAL_REPORT",
-    externalResponseId: response.id,
-    model: response.model || model,
+    response,
+    fallbackModel: model,
     status: mapExternalStatus(response.status),
     requestPayload: {
       purpose:
