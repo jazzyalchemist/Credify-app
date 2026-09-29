@@ -273,6 +273,19 @@ CITATION CONTRACT:
 - Unsupported or unresolved statements must be labeled as such rather than given a
   fabricated citation.
 
+MEDIA / DIGITAL FORENSICS REPORTING:
+- Build media_url_digital_forensics from the structured source-assessment
+  mediaForensics and mediaVerification records, not from general impressions.
+- Distinguish server-extracted metadata from model interpretation.
+- Do not say reverse-image search was performed unless the investigation record
+  explicitly says it was externally verified. Credify's native tooling does not
+  perform reverse-image matching; TEXTUAL_CORROBORATION_ONLY is not a reverse-image
+  search.
+- Preserve unresolved origin, geolocation, chronolocation, metadata, and
+  manipulation questions explicitly.
+- A valid file hash establishes byte identity/integrity within Credify; it does not
+  by itself establish authenticity, authorship, provenance, or truth.
+
 For PRE_REDTEAM:
 - adversarial_validation must clearly state that independent rival review has NOT
   yet occurred and this report will be frozen as the RedTeam input.
