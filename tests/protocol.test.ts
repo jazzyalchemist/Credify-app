@@ -26,6 +26,7 @@ function state(
     retrievalOutcomesComplete: true,
     provenanceComplete: true,
     sourceIndependenceAssessed: true,
+    unresolvedInformationOrigin: false,
     claimSynthesisComplete: true,
     preRedTeamFrozen: true,
     redTeamCompleted: true,
@@ -133,4 +134,23 @@ test("bundled canonical protocol verifies without a GitHub token", async () => {
       process.env.PROTOCOL_GITHUB_TOKEN = previous;
     }
   }
+});
+
+
+test("unresolved information origin remains a synthesis warning, not a fabricated blocker", () => {
+  const result = canEnterPhase(
+    "SYNTHESIS",
+    state({ unresolvedInformationOrigin: true }),
+  );
+  assert.equal(result.allowed, true);
+  assert.match(result.warnings.join(" "), /unresolved information origin/i);
+});
+
+test("unresolved information origin survives into final confidence warnings", () => {
+  const result = canEnterPhase(
+    "FINAL",
+    state({ unresolvedInformationOrigin: true }),
+  );
+  assert.equal(result.allowed, true);
+  assert.match(result.warnings.join(" "), /independent corroboration/i);
 });
