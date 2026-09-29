@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { CredibilityAssessmentCard } from "@/components/CredibilityAssessmentCard";
 import { listAiJobs } from "@/lib/db/ai-jobs";
+import { listArtifacts } from "@/lib/db/artifacts";
 import { listCredibilityAssessments } from "@/lib/db/credibility";
 import {
   listClaimSourceEdges,
@@ -50,6 +51,7 @@ export default async function AuditPage({
     challenges,
     reconciliations,
     auditEvents,
+    artifacts,
   ] = await Promise.all([
     getClaims(id),
     getSources(id),
@@ -63,6 +65,7 @@ export default async function AuditPage({
     listChallenges(id),
     listReconciliations(id),
     listAuditEvents(id),
+    listArtifacts(id),
   ]);
 
   return (
@@ -108,6 +111,7 @@ export default async function AuditPage({
           <div className="auditCounts">
             <div><strong>{claims.length}</strong><span>claims</span></div>
             <div><strong>{sources.length}</strong><span>sources</span></div>
+            <div><strong>{artifacts.length}</strong><span>raw artifacts</span></div>
             <div><strong>{edges.length}</strong><span>claim-source edges</span></div>
             <div><strong>{assessments.length}</strong><span>matrices</span></div>
             <div><strong>{searches.length}</strong><span>search records</span></div>
@@ -121,6 +125,47 @@ export default async function AuditPage({
           <p className="kicker">Protocol snapshot</p>
           <pre className="auditJson">{pretty(investigation.protocol_snapshot)}</pre>
         </article>
+      </section>
+
+
+      <section className="auditSection">
+        <div className="sectionTitle">
+          <p className="kicker">Raw evidence objects</p>
+          <h2>Artifact ledger</h2>
+        </div>
+        {artifacts.length ? (
+          <div className="artifactAuditGrid">
+            {artifacts.map((artifact) => (
+              <article className="artifactAuditCard" key={artifact.id}>
+                <div>
+                  <span className="claimId">{artifact.id}</span>
+                  <h3>{artifact.original_filename}</h3>
+                  <p>
+                    {artifact.mime_type} · {String(artifact.byte_size)} bytes
+                  </p>
+                </div>
+                <div>
+                  <span>Source: {artifact.source_id ?? "not admitted"}</span>
+                  <code>SHA-256 {artifact.sha256}</code>
+                </div>
+                <a
+                  className="smallButton"
+                  href={
+                    "/api/investigations/" +
+                    encodeURIComponent(id) +
+                    "/artifacts/" +
+                    encodeURIComponent(artifact.id) +
+                    "/download"
+                  }
+                >
+                  Verify & download
+                </a>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="emptyInline">No raw artifacts recorded.</p>
+        )}
       </section>
 
       <section className="auditSection">
