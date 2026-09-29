@@ -454,6 +454,12 @@ export const SYNTHESIS_SCHEMA = {
         additionalProperties: false,
       },
     },
+    investigation_dimension_scores: CREDIBILITY_DIMENSION_SCHEMA,
+    investigation_critical_failures: {
+      type: "array",
+      items: { type: "string" },
+    },
+    investigation_rationale: { type: "string" },
     executive_finding: { type: "string" },
     strongest_supporting_evidence: {
       type: "array",
@@ -474,6 +480,9 @@ export const SYNTHESIS_SCHEMA = {
   },
   required: [
     "claims",
+    "investigation_dimension_scores",
+    "investigation_critical_failures",
+    "investigation_rationale",
     "executive_finding",
     "strongest_supporting_evidence",
     "strongest_contrary_evidence",
