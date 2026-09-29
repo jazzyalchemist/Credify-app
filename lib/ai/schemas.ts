@@ -228,6 +228,19 @@ export const SCREENING_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+const dependencyEvidence = {
+  type: "object",
+  properties: {
+    key: { type: "string" },
+    evidence_urls: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: ["key", "evidence_urls"],
+  additionalProperties: false,
+} as const;
+
 export const SOURCE_AUDIT_SCHEMA = {
   type: "object",
   properties: {
@@ -248,6 +261,26 @@ export const SOURCE_AUDIT_SCHEMA = {
     information_origin_status: {
       type: "string",
       enum: ["VERIFIED", "UNRESOLVED"],
+    },
+    independence_fingerprint: {
+      type: "object",
+      properties: {
+        wire_or_release: dependencyEvidence,
+        datasets: { type: "array", items: dependencyEvidence },
+        authors: { type: "array", items: dependencyEvidence },
+        institutions: { type: "array", items: dependencyEvidence },
+        funders: { type: "array", items: dependencyEvidence },
+        notes: { type: "array", items: { type: "string" } },
+      },
+      required: [
+        "wire_or_release",
+        "datasets",
+        "authors",
+        "institutions",
+        "funders",
+        "notes",
+      ],
+      additionalProperties: false,
     },
     author: { type: "string" },
     institution: { type: "string" },
@@ -412,6 +445,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "provenance_status",
     "information_origin_url",
     "information_origin_status",
+    "independence_fingerprint",
     "author",
     "institution",
     "author_expertise_summary",
