@@ -24,7 +24,8 @@ test("every rival receives original frozen artifact content", () => {
   const block = orchestrator.slice(start, end);
 
   assert.match(block, /artifactContext\.contentParts/);
-  assert.match(block, /FROZEN ARTIFACT MAPPING/);
+  assert.match(orchestrator, /FROZEN ARTIFACT MAPPING/);
+  assert.match(orchestrator, /loadVerifiedArtifactInputPart\(artifact\)/);
 });
 
 test("data-forensics rival must independently execute completed Python for tabular evidence", () => {
