@@ -119,6 +119,38 @@ type SourceAuditOutput = {
     potential_conflicts_or_incentives: string[];
     unresolved_identity_questions: string[];
   };
+  framing_manipulation_audit: {
+    indicators: Array<{
+      category:
+        | "LOADED_LANGUAGE"
+        | "FALSE_DILEMMA"
+        | "DECONTEXTUALIZED_QUOTE"
+        | "SELECTIVE_STATISTICS"
+        | "UNNAMED_AUTHORITY"
+        | "FEAR_APPEAL"
+        | "EXCESSIVE_CERTAINTY"
+        | "CONSPIRATORIAL_FRAMING"
+        | "SCAPEGOATING"
+        | "MANUFACTURED_CONSENSUS"
+        | "ASTROTURFING_SIGNAL"
+        | "AMPLIFICATION_PATTERN"
+        | "MISLEADING_HEADLINE"
+        | "OTHER";
+      observation: string;
+      materiality: "LOW" | "MATERIAL" | "CRITICAL";
+      evidence_urls: string[];
+      inference_limit: string;
+    }>;
+    overall_framing_finding: string;
+    intent_evidence_status:
+      | "NO_INTENT_INFERENCE"
+      | "INTENT_EVIDENCE_PRESENT"
+      | "INTENT_UNRESOLVED";
+    truth_status_implication:
+      | "NO_DIRECT_TRUTH_INFERENCE"
+      | "MATERIAL_EVIDENCE_IMPACT_IDENTIFIED";
+    unresolved_framing_questions: string[];
+  };
   source_ecosystem_audit: {
     category:
       | "SCHOLARLY"
@@ -1153,11 +1185,17 @@ export async function processSourceAuditResponse(
     ...output.identity_affiliation_audit.institution.evidence_urls,
   ];
 
+  const framingEvidenceUrls =
+    output.framing_manipulation_audit.indicators.flatMap(
+      (indicator) => indicator.evidence_urls,
+    );
+
   const declaredEvidenceUrls = [
     ...output.evidence_urls,
     ...output.methodology_standards.standards_evidence_urls,
     ...citationEvidenceUrls,
     ...identityEvidenceUrls,
+    ...framingEvidenceUrls,
   ];
 
   const rejectedEvidenceUrls = declaredEvidenceUrls.filter(
@@ -1290,6 +1328,7 @@ export async function processSourceAuditResponse(
       authorExpertise: output.author_expertise_summary,
       institutionalAnalysis: output.institutional_analysis,
       identityAffiliationAudit: output.identity_affiliation_audit,
+      framingManipulationAudit: output.framing_manipulation_audit,
       sourceEcosystemAudit: output.source_ecosystem_audit,
       independenceFingerprint: validatedIndependenceFingerprint,
       methodology: output.methodology_summary,
@@ -1373,6 +1412,7 @@ export async function processSourceAuditResponse(
     scholarlyRegistryVerification,
     evidenceCaptureProvenance,
     identityAffiliationAudit: output.identity_affiliation_audit,
+    framingManipulationAudit: output.framing_manipulation_audit,
     sourceEcosystemAudit: output.source_ecosystem_audit,
     quantitativeToolVerification: {
       required: quantitativeForensicsRequired,
