@@ -115,6 +115,31 @@ type SourceAuditOutput = {
     unresolved_standards_questions: string[];
   };
   citation_integrity_summary: string;
+  citation_audit: {
+    applicability:
+      | "NOT_APPLICABLE"
+      | "CITATIONS_PRESENT"
+      | "CITATIONS_NOT_ACCESSIBLE";
+    citations_examined: Array<{
+      cited_work: string;
+      cited_locator: string;
+      proposition_at_issue: string;
+      support_status:
+        | "SUPPORTS"
+        | "PARTIAL_SUPPORT"
+        | "DOES_NOT_SUPPORT"
+        | "CONTRADICTS"
+        | "UNVERIFIED";
+      primary_or_secondary: "PRIMARY" | "SECONDARY" | "UNKNOWN";
+      correction_retraction_note: string;
+      evidence_urls: string[];
+      rationale: string;
+    }>;
+    citation_laundering_or_circularity: string[];
+    quote_context_issues: string[];
+    missing_primary_source_concerns: string[];
+    unresolved_citation_questions: string[];
+  };
   data_integrity_summary: string;
   quantitative_forensics: {
     applicability: "NOT_APPLICABLE" | "TABULAR_DATA";
@@ -991,9 +1016,14 @@ export async function processSourceAuditResponse(
       trustedUrls,
     );
 
+  const citationEvidenceUrls = output.citation_audit.citations_examined.flatMap(
+    (citation) => citation.evidence_urls,
+  );
+
   const declaredEvidenceUrls = [
     ...output.evidence_urls,
     ...output.methodology_standards.standards_evidence_urls,
+    ...citationEvidenceUrls,
   ];
 
   const rejectedEvidenceUrls = declaredEvidenceUrls.filter(
@@ -1085,6 +1115,7 @@ export async function processSourceAuditResponse(
       methodology: output.methodology_summary,
       methodologyStandards: output.methodology_standards,
       citationIntegrity: output.citation_integrity_summary,
+      citationAudit: output.citation_audit,
       dataIntegrity: output.data_integrity_summary,
       quantitativeForensics: output.quantitative_forensics,
       quantitativeToolVerification: {
@@ -1149,6 +1180,7 @@ export async function processSourceAuditResponse(
     independenceFingerprint: validatedIndependenceFingerprint,
     evidenceUrls: output.evidence_urls,
     methodologyStandards: output.methodology_standards,
+    citationAudit: output.citation_audit,
     webQueries: queries,
     quantitativeForensics: output.quantitative_forensics,
     mediaForensics: output.media_forensics,
