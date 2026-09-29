@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 export interface OpenAIWebSource {
   url: string;
   title: string;
@@ -99,21 +101,48 @@ export function hasWebSearchCall(response: OpenAIResponse) {
 
 export function extractCodeInterpreterUsage(response: OpenAIResponse) {
   const containerIds = new Set<string>();
-  let callCount = 0;
+  const calls: Array<{
+    containerId: string | null;
+    status: string | null;
+    code: string | null;
+    codeSha256: string | null;
+    codeLength: number;
+    codeTruncated: boolean;
+  }> = [];
 
   for (const item of response.output ?? []) {
     if (!isRecord(item) || item.type !== "code_interpreter_call") continue;
-    callCount += 1;
 
-    if (typeof item.container_id === "string") {
-      containerIds.add(item.container_id);
-    }
+    const containerId =
+      typeof item.container_id === "string" ? item.container_id : null;
+    if (containerId) containerIds.add(containerId);
+
+    const rawCode = typeof item.code === "string" ? item.code : null;
+    const codeLength = rawCode?.length ?? 0;
+    const codeSha256 = rawCode
+      ? createHash("sha256").update(rawCode).digest("hex")
+      : null;
+    const codeLimit = 50_000;
+    const code =
+      rawCode && rawCode.length > codeLimit
+        ? rawCode.slice(0, codeLimit)
+        : rawCode;
+
+    calls.push({
+      containerId,
+      status: typeof item.status === "string" ? item.status : null,
+      code,
+      codeSha256,
+      codeLength,
+      codeTruncated: Boolean(rawCode && rawCode.length > codeLimit),
+    });
   }
 
   return {
-    used: callCount > 0,
-    callCount,
+    used: calls.length > 0,
+    callCount: calls.length,
     containerIds: [...containerIds],
+    calls,
   };
 }
 
