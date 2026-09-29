@@ -193,6 +193,19 @@ export const RECONCILIATION_SCHEMA = {
           },
           wording: { type: "string" },
           rationale: { type: "string" },
+          driving_challenge_ids: {
+            type: "array",
+            items: { type: "string" },
+          },
+          surviving_evidence_refs: {
+            type: "array",
+            items: { type: "string" },
+          },
+          unresolved_challenge_ids: {
+            type: "array",
+            items: { type: "string" },
+          },
+          change_summary: { type: "string" },
         },
         required: [
           "claim_id",
@@ -200,6 +213,10 @@ export const RECONCILIATION_SCHEMA = {
           "confidence",
           "wording",
           "rationale",
+          "driving_challenge_ids",
+          "surviving_evidence_refs",
+          "unresolved_challenge_ids",
+          "change_summary",
         ],
         additionalProperties: false,
       },
