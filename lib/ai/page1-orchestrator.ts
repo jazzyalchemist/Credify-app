@@ -12,6 +12,7 @@ import {
 } from "@/lib/db/ai-jobs";
 import {
   listClaimSourceEdges,
+  listEvidenceChains,
   linkClaimSource,
   createSearchLog,
 } from "@/lib/db/evidence";
@@ -663,11 +664,18 @@ export async function startSynthesis(investigationId: string) {
 
   await ensureNoActiveNonAuditJob(investigationId);
 
-  const [claims, sources, assessments, claimSourceEdges] = await Promise.all([
+  const [
+    claims,
+    sources,
+    assessments,
+    claimSourceEdges,
+    evidenceChains,
+  ] = await Promise.all([
     getClaims(investigationId),
     getSources(investigationId),
     listCredibilityAssessments(investigationId),
     listClaimSourceEdges(investigationId),
+    listEvidenceChains(investigationId),
   ]);
 
   const included = sources.filter(
@@ -709,6 +717,7 @@ export async function startSynthesis(investigationId: string) {
           sources: included,
           sourceAssessments,
           claimSourceEdges,
+          evidenceChains,
         }),
       },
     ],
@@ -734,6 +743,9 @@ export async function startSynthesis(investigationId: string) {
       protocolCommit: investigation.protocol_commit,
       claimIds: claims.map((claim) => claim.id),
       sourceIds: included.map((source) => source.id),
+      evidenceChainIds: evidenceChains.map(
+        (chain) => String((chain as { id?: unknown }).id ?? ""),
+      ).filter(Boolean),
     },
   });
 
