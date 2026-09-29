@@ -41,7 +41,7 @@ import {
 } from "./schemas";
 import { loadCanonicalInitialProtocol } from "@/lib/protocol/canonical";
 import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
-import { listArtifacts } from "@/lib/db/artifacts";
+import { ensureArtifactSources, listArtifacts } from "@/lib/db/artifacts";
 import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
 
 type ScreeningOutput = {
@@ -191,12 +191,44 @@ export async function startScreening(investigationId: string) {
 
   await ensureNoActiveNonAuditJob(investigationId);
 
-  const [claims, sources] = await Promise.all([
+  const linkedArtifacts = await ensureArtifactSources(investigationId);
+  if (linkedArtifacts.length > 0) {
+    await appendAuditEvent(investigationId, "ARTIFACT_SOURCES_ENSURED", {
+      artifactSources: linkedArtifacts,
+      stage: "SCREENING",
+      note:
+        "Artifact/source linkage was verified before screening so submitted material cannot fall outside the source ledger.",
+    });
+  }
+
+  const [claims, sources, artifacts] = await Promise.all([
     getClaims(investigationId),
     getSources(investigationId),
+    listArtifacts(investigationId),
   ]);
   if (sources.length < 1) {
     throw new Error("Screening requires at least one identified source.");
+  }
+
+  const screeningArtifactEntries = [];
+  for (const artifact of artifacts) {
+    if (!artifact.source_id) continue;
+    const part = await loadVerifiedArtifactInputPart(artifact);
+    screeningArtifactEntries.push(
+      {
+        type: "input_text",
+        text:
+          "UPLOADED ARTIFACT MAPPING: " +
+          artifact.id +
+          " -> " +
+          artifact.source_id +
+          " | filename=" +
+          artifact.original_filename +
+          " | sha256=" +
+          artifact.sha256,
+      },
+      part,
+    );
   }
 
   const model = researchModel();
@@ -211,7 +243,13 @@ export async function startScreening(investigationId: string) {
       },
       {
         role: "user",
-        content: screeningPrompt(investigation, claims, sources),
+        content: [
+          {
+            type: "input_text",
+            text: screeningPrompt(investigation, claims, sources, artifacts),
+          },
+          ...screeningArtifactEntries,
+        ],
       },
     ],
     text: {
@@ -235,12 +273,20 @@ export async function startScreening(investigationId: string) {
       purpose: "source_screening",
       protocolCommit: investigation.protocol_commit,
       sourceIds: sources.map((source) => source.id),
+      artifactInputs: artifacts
+        .filter((artifact) => artifact.source_id)
+        .map((artifact) => ({
+          artifactId: artifact.id,
+          sourceId: artifact.source_id,
+          sha256: artifact.sha256,
+        })),
     },
   });
 
   await appendAuditEvent(investigationId, "AI_SCREENING_STARTED", {
     jobId: job.id,
     sourceCount: sources.length,
+    artifactInputCount: artifacts.filter((artifact) => artifact.source_id).length,
   });
 
   return job;
