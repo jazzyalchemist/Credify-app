@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { safeInternalPath } from "@/lib/auth/session";
+import { safeInternalPath } from "@/lib/auth/navigation";
 
 export function LoginForm() {
   const router = useRouter();
