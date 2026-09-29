@@ -2297,3 +2297,144 @@ a.citationChip:hover {
   font-size: 10px;
   line-height: 1.55;
 }
+
+
+.overallMatrixPanel {
+  margin: 18px 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  background: rgba(255,255,255,0.93);
+  box-shadow: 0 10px 30px rgba(24,35,48,0.05);
+}
+
+.overallMatrixHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.overallMatrixHeader h2 {
+  margin: 0 0 7px;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.overallMatrixHeader p:not(.kicker) {
+  max-width: 680px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.overallScores {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.overallScores > div {
+  min-width: 128px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fafbfc;
+}
+
+.overallScores span,
+.overallScores strong {
+  display: block;
+}
+
+.overallScores span {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.overallScores strong {
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.matrixDeltaRows {
+  display: grid;
+  gap: 1px;
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--line);
+}
+
+.matrixDeltaRow {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto 62px;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 12px;
+  background: #fff;
+  font-size: 10px;
+}
+
+.matrixDeltaRow > span:first-child {
+  color: #4d5b68;
+}
+
+.matrixDeltaRow > span:nth-child(2) {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.matrixDeltaRow strong {
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.overallFailureGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.overallFailureGrid > div {
+  padding: 12px;
+  border-radius: 11px;
+  background: var(--rose-soft);
+  color: #764848;
+  font-size: 10px;
+}
+
+.overallFailureGrid ul {
+  margin: 6px 0 0;
+  padding-left: 17px;
+}
+
+@media (max-width: 720px) {
+  .overallMatrixHeader {
+    flex-direction: column;
+  }
+
+  .overallScores {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .matrixDeltaRow {
+    grid-template-columns: 1fr auto;
+  }
+
+  .matrixDeltaRow strong {
+    grid-column: 2;
+  }
+
+  .overallFailureGrid {
+    grid-template-columns: 1fr;
+  }
+}
