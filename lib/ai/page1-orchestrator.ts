@@ -1447,15 +1447,16 @@ export async function processSynthesisResponse(
   }
 
   const claimById = new Map(claims.map((claim) => [claim.id, claim]));
-  const applied: Array<{
-    claimId: string;
-    confidence: number;
-    totalScore: number;
-  }> = [];
 
-  for (const claimOutput of output.claims) {
+  const investigationMatrixScore = validateAndTotalDimensionScores(
+    output.investigation_dimension_scores,
+  );
+
+  const preparedClaims = output.claims.map((claimOutput) => {
     const claim = claimById.get(claimOutput.claim_id);
-    if (!claim) throw new Error("Synthesis claim disappeared during processing.");
+    if (!claim) {
+      throw new Error("Synthesis claim disappeared during processing.");
+    }
 
     const supportingSources = claimOutput.evidence_source_ids
       .map((id) => sourceById.get(id))
@@ -1479,6 +1480,84 @@ export async function processSynthesisResponse(
       temporalAlignment: claimOutput.temporal_alignment.alignment,
       credibilityMatrixScore: claimMatrixScore,
     });
+
+    return {
+      claim,
+      claimOutput,
+      primaryRecovered,
+      claimMatrixScore,
+    };
+  });
+
+  const synthesizedPrimaryGaps = preparedClaims.filter(
+    ({ claim, primaryRecovered }) =>
+      claim.requires_primary_evidence && !primaryRecovered,
+  );
+
+  if (
+    saturation.status === "CONVERGED" &&
+    synthesizedPrimaryGaps.length > 0
+  ) {
+    throw new Error(
+      "Research cannot be marked CONVERGED while claims requiring primary evidence still lack recovered primary support.",
+    );
+  }
+
+  const requiredReasonCodes = new Set<string>();
+  if (synthesizedPrimaryGaps.length > 0) {
+    requiredReasonCodes.add("MISSING_REQUIRED_PRIMARY_EVIDENCE");
+  }
+  if (outputConflictExists) {
+    requiredReasonCodes.add("UNRESOLVED_MATERIAL_CONFLICT");
+  }
+  if (unresolvedOriginExists) {
+    requiredReasonCodes.add("UNRESOLVED_PROVENANCE_OR_ORIGIN");
+  }
+
+  for (const requiredReason of requiredReasonCodes) {
+    if (!saturation.reasons_to_continue.includes(requiredReason as never)) {
+      throw new Error(
+        "Research saturation omitted a known reason to continue: " +
+          requiredReason +
+          ".",
+      );
+    }
+  }
+
+  if (
+    saturation.status === "CONVERGED" &&
+    (saturation.residual_gaps.length > 0 ||
+      saturation.additional_searches_needed.length > 0)
+  ) {
+    throw new Error(
+      "CONVERGED research saturation cannot retain residual gaps or additional searches.",
+    );
+  }
+
+  if (
+    saturation.status === "CONTINUE_REQUIRED" &&
+    saturation.additional_searches_needed.length === 0
+  ) {
+    throw new Error(
+      "CONTINUE_REQUIRED must identify at least one additional search or evidence-acquisition step.",
+    );
+  }
+
+  if (!saturation.stop_rationale.trim()) {
+    throw new Error(
+      "Research saturation must include a non-empty stop rationale.",
+    );
+  }
+
+  const applied: Array<{
+    claimId: string;
+    confidence: number;
+    totalScore: number;
+  }> = [];
+
+  for (const prepared of preparedClaims) {
+    const { claim, claimOutput, primaryRecovered, claimMatrixScore } =
+      prepared;
 
     const assessment = await upsertCredibilityAssessment({
       investigationId: job.investigation_id,
@@ -1519,6 +1598,7 @@ export async function processSynthesisResponse(
         notes: "Confirmed during Page-1 synthesis.",
       });
     }
+
     for (const sourceId of claimOutput.counterevidence_source_ids) {
       await linkClaimSource({
         investigationId: job.investigation_id,
@@ -1532,26 +1612,14 @@ export async function processSynthesisResponse(
     applied.push({
       claimId: claim.id,
       confidence: claimOutput.confidence,
-      totalScore: Number(assessment.total_score),
+      totalScore: claimMatrixScore,
     });
-  }
 
-  const synthesizedPrimaryGaps = output.claims.filter((claimOutput) => {
-    const claim = claimById.get(claimOutput.claim_id);
-    if (!claim?.requires_primary_evidence) return false;
-
-    return !claimOutput.evidence_source_ids
-      .map((id) => sourceById.get(id))
-      .some((source) => source?.primary_or_secondary === "PRIMARY");
-  });
-
-  if (
-    saturation.status === "CONVERGED" &&
-    synthesizedPrimaryGaps.length > 0
-  ) {
-    throw new Error(
-      "Research cannot be marked CONVERGED while claims requiring primary evidence still lack recovered primary support.",
-    );
+    if (Number(assessment.total_score) !== claimMatrixScore) {
+      throw new Error(
+        "Persisted claim credibility matrix diverged from prevalidated score.",
+      );
+    }
   }
 
   await setResearchSaturation(job.investigation_id, {
@@ -1574,6 +1642,14 @@ export async function processSynthesisResponse(
     },
     evidenceRefs: included.map((source) => source.id),
   });
+
+  if (
+    Number(investigationAssessment.total_score) !== investigationMatrixScore
+  ) {
+    throw new Error(
+      "Persisted investigation credibility matrix diverged from prevalidated score.",
+    );
+  }
 
   const result = {
     executiveFinding: output.executive_finding,
