@@ -59,4 +59,5 @@ export interface SourceRecord {
   included_in_synthesis: boolean;
   information_origin_id: string | null;
   information_origin_status: string;
+  independence_fingerprint: unknown;
 }
