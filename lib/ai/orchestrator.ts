@@ -27,6 +27,7 @@ import {
   extractWebSources,
   researchModel,
   retrieveResponse,
+  type OpenAIResponse,
 } from "./openai";
 import { CREDIFY_RESEARCH_SYSTEM, decompositionPrompt, discoveryPrompt } from "./prompts";
 import { DECOMPOSITION_SCHEMA, DISCOVERY_SCHEMA } from "./schemas";
