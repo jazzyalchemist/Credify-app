@@ -43,6 +43,7 @@ export interface InvestigationState {
   retrievalOutcomesComplete: boolean;
   provenanceComplete: boolean;
   sourceIndependenceAssessed: boolean;
+  unresolvedInformationOrigin: boolean;
   claimSynthesisComplete: boolean;
   preRedTeamFrozen: boolean;
   redTeamCompleted: boolean;
