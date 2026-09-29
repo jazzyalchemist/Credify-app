@@ -49,7 +49,11 @@ import {
   listArtifacts,
 } from "@/lib/db/artifacts";
 import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
-import { artifactNeedsQuantitativeForensics } from "@/lib/artifacts/content";
+import {
+  artifactMediaApplicability,
+  artifactMetadataStatus,
+  artifactNeedsQuantitativeForensics,
+} from "@/lib/artifacts/content";
 
 type ScreeningOutput = {
   decisions: Array<{
@@ -707,6 +711,47 @@ export async function processSourceAuditResponse(
     );
   }
 
+  const mediaApplicability = artifact
+    ? artifactMediaApplicability(artifact.mime_type)
+    : "NOT_APPLICABLE";
+  const expectedMetadataStatus = artifactMetadataStatus(artifact);
+
+  if (output.media_forensics.applicability !== mediaApplicability) {
+    throw new Error(
+      "Media-forensics applicability did not match the verified artifact type.",
+    );
+  }
+
+  if (
+    expectedMetadataStatus === "AVAILABLE" &&
+    !["AVAILABLE", "PARTIAL"].includes(output.media_forensics.metadata_status)
+  ) {
+    throw new Error(
+      "Media-forensics output ignored metadata that Credify actually extracted.",
+    );
+  }
+
+  if (
+    expectedMetadataStatus !== "AVAILABLE" &&
+    output.media_forensics.metadata_status === "AVAILABLE"
+  ) {
+    throw new Error(
+      "Media-forensics output claimed metadata availability that the artifact record does not support.",
+    );
+  }
+
+  if (
+    output.media_forensics.reverse_image_search_status !== "NOT_APPLICABLE" &&
+    output.media_forensics.reverse_image_search_status !==
+      "NOT_AVAILABLE_IN_CURRENT_TOOLING" &&
+    output.media_forensics.reverse_image_search_status !==
+      "TEXTUAL_CORROBORATION_ONLY"
+  ) {
+    throw new Error(
+      "Media-forensics output claimed an unsupported reverse-image-search state.",
+    );
+  }
+
   if (output.source_id !== source.id) {
     throw new Error(
       "Source audit returned the wrong source ID: " + output.source_id + ".",
@@ -805,6 +850,12 @@ export async function processSourceAuditResponse(
     evidenceUrls: output.evidence_urls,
     webQueries: queries,
     quantitativeForensics: output.quantitative_forensics,
+    mediaForensics: output.media_forensics,
+    mediaVerification: {
+      applicability: mediaApplicability,
+      metadataStatusFromArtifact: expectedMetadataStatus,
+      reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
+    },
     quantitativeToolVerification: {
       required: quantitativeForensicsRequired,
       used: codeInterpreterUsage.used,
