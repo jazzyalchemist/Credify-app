@@ -259,6 +259,49 @@ export const SOURCE_AUDIT_SCHEMA = {
     methodology_summary: { type: "string" },
     citation_integrity_summary: { type: "string" },
     data_integrity_summary: { type: "string" },
+    quantitative_forensics: {
+      type: "object",
+      properties: {
+        applicability: {
+          type: "string",
+          enum: ["NOT_APPLICABLE", "TABULAR_DATA"],
+        },
+        calculations_performed: {
+          type: "array",
+          items: { type: "string" },
+        },
+        reported_figures_reproduced: {
+          type: "array",
+          items: { type: "string" },
+        },
+        reported_figures_not_reproduced: {
+          type: "array",
+          items: { type: "string" },
+        },
+        denominator_unit_population_checks: {
+          type: "array",
+          items: { type: "string" },
+        },
+        statistical_warnings: {
+          type: "array",
+          items: { type: "string" },
+        },
+        unresolved_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "applicability",
+        "calculations_performed",
+        "reported_figures_reproduced",
+        "reported_figures_not_reproduced",
+        "denominator_unit_population_checks",
+        "statistical_warnings",
+        "unresolved_questions",
+      ],
+      additionalProperties: false,
+    },
     historical_cultural_temporal_context: { type: "string" },
     media_digital_authenticity_summary: { type: "string" },
     media_forensics: {
@@ -344,6 +387,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "methodology_summary",
     "citation_integrity_summary",
     "data_integrity_summary",
+    "quantitative_forensics",
     "historical_cultural_temporal_context",
     "media_digital_authenticity_summary",
     "media_forensics",
