@@ -89,8 +89,7 @@ type SourceAuditOutput = {
     reverse_image_search_status:
       | "NOT_APPLICABLE"
       | "NOT_AVAILABLE_IN_CURRENT_TOOLING"
-      | "TEXTUAL_CORROBORATION_ONLY"
-      | "EXTERNALLY_VERIFIED";
+      | "TEXTUAL_CORROBORATION_ONLY";
     reverse_image_search_finding: string;
     unresolved_media_questions: string[];
   };
