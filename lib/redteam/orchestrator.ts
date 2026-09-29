@@ -15,8 +15,8 @@ import {
   createChallenge,
   createReconciliation,
   createRedTeamReview,
+  failOrphanedRedTeamReviews,
   listChallenges,
-  listRedTeamReviews,
   setRedTeamReviewStatus,
 } from "@/lib/db/redteam";
 import {
@@ -215,16 +215,15 @@ export async function startRedTeam(investigationId: string) {
     throw new Error("Freeze the pre-RedTeam dossier before starting rival review.");
   }
 
-  const existingReviews = await listRedTeamReviews(investigationId);
-  const activeJobs = (await listAiJobs(investigationId)).filter((job) =>
-    ["QUEUED", "IN_PROGRESS", "PROCESSING"].includes(job.status),
-  );
-
-  const activeReviewIds = new Set(
-    activeJobs
-      .map((job) => job.redteam_review_id)
-      .filter((id): id is string => Boolean(id)),
-  );
+  const orphanedReviewIds =
+    await failOrphanedRedTeamReviews(investigationId);
+  if (orphanedReviewIds.length > 0) {
+    await appendAuditEvent(investigationId, "REDTEAM_ORPHANED_STARTS_FAILED", {
+      reviewIds: orphanedReviewIds,
+      reason:
+        "No active AI job was linked within the reviewer-start lease window.",
+    });
+  }
 
   const model = researchModel();
   const canonicalProtocol = await loadCanonicalRedTeamProtocol();
@@ -233,32 +232,20 @@ export async function startRedTeam(investigationId: string) {
   const errors: Array<{ role: string; error: string }> = [];
 
   for (const role of REDTEAM_ROLES) {
-    const roleReviews = existingReviews.filter(
-      (review) => review.reviewer_role === role.key,
-    );
-
-    if (roleReviews.some((review) => review.status === "COMPLETED")) {
-      skipped.push({ role: role.key, reason: "already completed" });
-      continue;
-    }
-
-    if (
-      roleReviews.some(
-        (review) =>
-          (review.status === "PENDING" || review.status === "IN_PROGRESS") &&
-          activeReviewIds.has(review.id),
-      )
-    ) {
-      skipped.push({ role: role.key, reason: "already active" });
-      continue;
-    }
-
     const review = await createRedTeamReview({
       investigationId,
       reviewerRole: role.key,
       modelProvider: "OpenAI",
       modelVersion: model,
     });
+
+    if (!review) {
+      skipped.push({
+        role: role.key,
+        reason: "role already active or completed",
+      });
+      continue;
+    }
 
     try {
       const requestPayload = {
@@ -268,7 +255,7 @@ export async function startRedTeam(investigationId: string) {
           {
             type: "web_search",
             search_context_size: "high",
-},
+          },
         ],
         tool_choice: "required",
         include: ["web_search_call.action.sources"],
@@ -331,10 +318,11 @@ export async function startRedTeam(investigationId: string) {
     started,
     skipped,
     errors,
+    orphanedReviewIds,
     dossierSha256: investigation.pre_redteam_snapshot_hash,
   });
 
-  return { started, skipped, errors };
+  return { started, skipped, errors, orphanedReviewIds };
 }
 
 export async function processRedTeamReviewResponse(
