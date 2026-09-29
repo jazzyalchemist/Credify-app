@@ -5,6 +5,10 @@ import { CitedReportText } from "@/components/CitedReportText";
 import { getInvestigation, getSources } from "@/lib/db/repository";
 import { listArtifacts } from "@/lib/db/artifacts";
 import { listReports } from "@/lib/db/reports";
+import {
+  listChallenges,
+  listReconciliations,
+} from "@/lib/db/redteam";
 
 export const dynamic = "force-dynamic";
 
@@ -42,10 +46,18 @@ export default async function ReportsPage({
   const investigation = await getInvestigation(id);
   if (!investigation) notFound();
 
-  const [reports, sources, artifacts] = await Promise.all([
+  const [
+    reports,
+    sources,
+    artifacts,
+    challenges,
+    reconciliations,
+  ] = await Promise.all([
     listReports(id),
     getSources(id),
     listArtifacts(id),
+    listChallenges(id),
+    listReconciliations(id),
   ]);
 
   return (
@@ -127,6 +139,8 @@ export default async function ReportsPage({
                             text={String(value)}
                             sources={sources}
                             artifacts={artifacts}
+                            challenges={challenges}
+                            reconciliations={reconciliations}
                             investigationId={id}
                           />
                         </div>
