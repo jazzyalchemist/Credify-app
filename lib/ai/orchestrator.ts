@@ -44,6 +44,11 @@ import {
 } from "@/lib/ai/page1-orchestrator";
 import { processReportResponse } from "@/lib/ai/reports";
 import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
+import {
+  ensureArtifactSources,
+  listArtifacts,
+} from "@/lib/db/artifacts";
+import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
 
 type DecompositionOutput = {
   domain: string;
@@ -134,7 +139,13 @@ export async function startDecomposition(investigationId: string) {
   }
 
   const model = researchModel();
-  const canonicalProtocol = await loadCanonicalInitialProtocol();
+  const [canonicalProtocol, artifacts] = await Promise.all([
+    loadCanonicalInitialProtocol(),
+    listArtifacts(investigationId),
+  ]);
+  const artifactParts = await Promise.all(
+    artifacts.map((artifact) => loadVerifiedArtifactInputPart(artifact)),
+  );
   const requestPayload = {
     model,
     reasoning: { effort: "medium" },
@@ -153,7 +164,16 @@ export async function startDecomposition(investigationId: string) {
         role: "system",
         content: CREDIFY_RESEARCH_SYSTEM + "\n\n" + canonicalProtocol,
       },
-      { role: "user", content: decompositionPrompt(investigation) },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: decompositionPrompt(investigation),
+          },
+          ...artifactParts,
+        ],
+      },
     ],
     text: {
       format: {
@@ -176,6 +196,11 @@ export async function startDecomposition(investigationId: string) {
       model,
       protocolCommit: investigation.protocol_commit,
       purpose: "claim_decomposition",
+      artifactIds: artifacts.map((artifact) => artifact.id),
+      artifactHashes: artifacts.map((artifact) => ({
+        id: artifact.id,
+        sha256: artifact.sha256,
+      })),
     },
   });
 
@@ -204,6 +229,15 @@ export async function startDiscovery(investigationId: string) {
   );
   if (activeJobs.length > 0) {
     throw new Error("Another AI research job is already active for this investigation.");
+  }
+
+  const linkedArtifacts = await ensureArtifactSources(investigationId);
+  if (linkedArtifacts.length > 0) {
+    await appendAuditEvent(investigationId, "ARTIFACT_SOURCES_ENSURED", {
+      artifactSources: linkedArtifacts,
+      note:
+        "Submitted artifacts entered the source ledger for downstream screening and eligibility; this does not itself establish credibility.",
+    });
   }
 
   const claims = await getClaims(investigationId);
@@ -253,6 +287,7 @@ export async function startDiscovery(investigationId: string) {
       protocolCommit: investigation.protocol_commit,
       purpose: "evidence_discovery",
       claimIds: claims.map((claim) => claim.id),
+      artifactSources: linkedArtifacts,
     },
   });
 
