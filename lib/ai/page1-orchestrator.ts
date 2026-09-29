@@ -810,6 +810,11 @@ export async function processSourceAuditResponse(
       context: output.historical_cultural_temporal_context,
       mediaAuthenticity: output.media_digital_authenticity_summary,
       mediaForensics: output.media_forensics,
+      mediaVerification: {
+        applicability: mediaApplicability,
+        metadataStatusFromArtifact: expectedMetadataStatus,
+        reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
+      },
     },
     evidenceRefs: output.evidence_urls,
   });
