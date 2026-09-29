@@ -45,6 +45,10 @@ import {
 import { loadCanonicalInitialProtocol } from "@/lib/protocol/canonical";
 import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
 import {
+  extractDoi,
+  verifyCrossrefStatus,
+} from "@/lib/scholarly/crossref";
+import {
   ensureArtifactSources,
   getArtifactBySourceId,
   listArtifacts,
@@ -960,6 +964,42 @@ export async function processSourceAuditResponse(
     );
   }
 
+  const scholarlyDoiCandidate = [
+    source.url_or_identifier,
+    origin || null,
+    ...output.evidence_urls,
+  ].find((value) => Boolean(extractDoi(value)));
+
+  const scholarlyRegistryVerification = await verifyCrossrefStatus(
+    scholarlyDoiCandidate ?? null,
+  );
+
+  if (
+    scholarlyRegistryVerification.applicable &&
+    scholarlyRegistryVerification.status === "VERIFIED" &&
+    scholarlyRegistryVerification.retracted &&
+    !/retract/i.test(output.correction_retraction_status)
+  ) {
+    throw new Error(
+      "Crossref/Retraction Watch reports a registered retraction, but the model audit did not acknowledge it.",
+    );
+  }
+
+  const correctionRetractionStatus =
+    scholarlyRegistryVerification.applicable &&
+    scholarlyRegistryVerification.status === "VERIFIED"
+      ? output.correction_retraction_status +
+        (scholarlyRegistryVerification.retracted
+          ? " | Crossref/Retraction Watch: REGISTERED RETRACTION."
+          : scholarlyRegistryVerification.updates.length > 0
+            ? " | Crossref: registered post-publication update(s): " +
+              scholarlyRegistryVerification.updates
+                .map((update) => update.type)
+                .join(", ") +
+              "."
+            : " | Crossref: no registered update returned at check time; this is not proof that no correction or concern exists.")
+      : output.correction_retraction_status;
+
   const assessment = await upsertCredibilityAssessment({
     investigationId: job.investigation_id,
     subjectType: "SOURCE",
@@ -995,6 +1035,7 @@ export async function processSourceAuditResponse(
         metadataStatusFromArtifact: expectedMetadataStatus,
         reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
       },
+      scholarlyRegistryVerification,
     },
     evidenceRefs: output.evidence_urls,
   });
@@ -1006,7 +1047,7 @@ export async function processSourceAuditResponse(
     provenanceStatus: output.provenance_status,
     retrievalStatus: output.retrieval_status,
     peerReviewStatus: output.peer_review_status,
-    correctionRetractionStatus: output.correction_retraction_status,
+    correctionRetractionStatus,
     fundingConflicts: output.funding_conflicts,
     informationOriginId: origin ? normalizeUrl(origin) : null,
     informationOriginStatus: output.information_origin_status,
@@ -1043,6 +1084,7 @@ export async function processSourceAuditResponse(
       metadataStatusFromArtifact: expectedMetadataStatus,
       reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
     },
+    scholarlyRegistryVerification,
     quantitativeToolVerification: {
       required: quantitativeForensicsRequired,
       used: codeInterpreterUsage.used,
