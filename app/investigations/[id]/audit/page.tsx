@@ -225,13 +225,13 @@ export default async function AuditPage({
           <p className="kicker">Independent reviewers</p>
           <pre className="auditJson">{pretty(reviews)}</pre>
         </article>
-        <article className="panel">
+        <article className="panel" id="challenges">
           <p className="kicker">Challenges</p>
           <pre className="auditJson">{pretty(challenges)}</pre>
         </article>
       </section>
 
-      <section className="auditSection">
+      <section className="auditSection" id="reconciliation">
         <div className="sectionTitle">
           <p className="kicker">Blind adjudication</p>
           <h2>Reconciliation record</h2>
