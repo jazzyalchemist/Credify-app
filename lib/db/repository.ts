@@ -354,6 +354,7 @@ export async function updateSource(
     fundingConflicts?: string | null;
     informationOriginId?: string | null;
     informationOriginStatus?: string;
+    independenceFingerprint?: unknown;
     credibilityScore?: number | null;
     includedInSynthesis?: boolean;
   },
@@ -379,6 +380,7 @@ export async function updateSource(
     "fundingConflicts",
     "informationOriginId",
     "informationOriginStatus",
+    "independenceFingerprint",
     "credibilityScore",
   ]);
   const allowed =
@@ -435,6 +437,10 @@ export async function updateSource(
     informationOriginStatus:
       input.informationOriginStatus ??
       current[0].information_origin_status,
+    independenceFingerprint:
+      input.independenceFingerprint === undefined
+        ? current[0].independence_fingerprint
+        : input.independenceFingerprint,
     credibilityScore:
       input.credibilityScore === undefined
         ? current[0].credibility_score
@@ -458,6 +464,7 @@ export async function updateSource(
       funding_conflicts = ${next.fundingConflicts},
       information_origin_id = ${next.informationOriginId},
       information_origin_status = ${next.informationOriginStatus},
+      independence_fingerprint = ${sql.json(next.independenceFingerprint as never)},
       credibility_score = ${next.credibilityScore},
       included_in_synthesis = ${next.includedInSynthesis},
       updated_at = NOW()
@@ -467,7 +474,8 @@ export async function updateSource(
 
   if (
     input.informationOriginStatus !== undefined ||
-    input.informationOriginId !== undefined
+    input.informationOriginId !== undefined ||
+    input.independenceFingerprint !== undefined
   ) {
     await rebuildEvidenceChains(investigationId);
   }
