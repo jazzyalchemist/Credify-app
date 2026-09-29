@@ -171,6 +171,11 @@ export function sourceAuditPrompt(
   claims: ClaimRecord[],
   artifact?: ArtifactRecord | null,
 ) {
+  const isUrlSource = Boolean(
+    source.url_or_identifier &&
+      /^https?:\/\//i.test(source.url_or_identifier),
+  );
+
   return `
 Conduct the protocol's full ELIGIBILITY / CREDIBILITY audit of ONE included source.
 
@@ -264,6 +269,32 @@ ${artifact && artifactNeedsQuantitativeForensics(artifact.mime_type) ? `
 - This source is not a tabular-data artifact. Set
   quantitative_forensics.applicability to NOT_APPLICABLE and return empty arrays
   for its remaining fields. Do not imply that Python/data recomputation occurred.
+`}
+
+URL / DOMAIN FORENSICS CONTRACT:
+${isUrlSource ? `
+- This source has an HTTP(S) URL. Set url_forensics.applicability to URL_SOURCE.
+- Distinguish the submitted page URL, the publishing domain/organization, and the
+  underlying information origin; they may be different entities.
+- Use web evidence to investigate the canonical page/version, ownership or
+  institutional affiliation, historical copies or archived versions when
+  discoverable, visible update/correction practices, and the earliest publication
+  date/version you can actually verify.
+- Look for domain/lookalike confusion, moved content, syndicated/reposted copies,
+  URL shorteners, mirrors, and redirects only when supported by returned evidence.
+- Do NOT claim that Credify directly performed WHOIS/RDAP, DNS, certificate/TLS,
+  redirect-chain, domain-age, robots.txt, or Wayback/API checks unless the needed
+  result is explicitly available in verified evidence. Put unavailable direct
+  checks in unavailable_technical_checks.
+- Finding no archive/search result is not proof that no historical copy exists.
+- Distinguish a page's current content from claims about what it said at an earlier
+  date unless a historical version was actually recovered.
+- Put unresolved domain identity, canonicalization, archive, or publication-date
+  questions in unresolved_url_questions rather than guessing.
+` : `
+- This source does not have an HTTP(S) URL. Set url_forensics.applicability to
+  NOT_APPLICABLE. Use concise not-applicable findings, keep technical-check and
+  unresolved arrays empty, and do not invent a domain identity.
 `}
 
 Trace the source toward its true information origin. Set information_origin_url to
