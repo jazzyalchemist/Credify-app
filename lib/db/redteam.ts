@@ -280,6 +280,12 @@ export async function applyFinalClaimAssessment(input: {
   confidence: number;
   wording: string;
   rationale: string;
+  evidenceTrace: {
+    drivingChallengeIds: string[];
+    survivingEvidenceRefs: string[];
+    unresolvedChallengeIds: string[];
+    changeSummary: string;
+  };
 }): Promise<void> {
   const sql = db();
   await sql`
@@ -289,6 +295,7 @@ export async function applyFinalClaimAssessment(input: {
       final_confidence = ${input.confidence},
       final_wording = ${input.wording},
       final_rationale = ${input.rationale},
+      final_evidence_trace = ${sql.json(input.evidenceTrace as never)},
       updated_at = NOW()
     WHERE id = ${input.claimId}
       AND investigation_id = ${input.investigationId}
