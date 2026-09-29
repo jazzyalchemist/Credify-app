@@ -13,6 +13,7 @@ export function SourceAuditEditor({
   primaryOrSecondary,
   screeningDecision,
   originId,
+  originStatus,
   credibilityScore,
 }: {
   investigationId: string;
@@ -23,6 +24,7 @@ export function SourceAuditEditor({
   primaryOrSecondary: string;
   screeningDecision: string;
   originId: string | null;
+  originStatus: string;
   credibilityScore: number | null;
 }) {
   const router = useRouter();
@@ -31,6 +33,7 @@ export function SourceAuditEditor({
   const [primary, setPrimary] = useState(primaryOrSecondary);
   const [screening, setScreening] = useState(screeningDecision);
   const [origin, setOrigin] = useState(originId ?? "");
+  const [originState, setOriginState] = useState(originStatus);
   const [score, setScore] = useState(
     credibilityScore === null ? "" : String(credibilityScore),
   );
@@ -55,6 +58,7 @@ export function SourceAuditEditor({
           provenanceStatus: provenance,
           primaryOrSecondary: primary,
           informationOriginId: origin.trim() || null,
+          informationOriginStatus: originState,
           credibilityScore: score.trim() === "" ? null : Number(score),
         };
 
@@ -130,6 +134,14 @@ export function SourceAuditEditor({
             <option value="UNKNOWN">Primary status unknown</option>
             <option value="PRIMARY">Primary</option>
             <option value="SECONDARY">Secondary</option>
+          </select>
+          <select
+            value={originState}
+            onChange={(event) => setOriginState(event.target.value)}
+          >
+            <option value="UNASSESSED">Origin unassessed</option>
+            <option value="VERIFIED">Origin verified</option>
+            <option value="UNRESOLVED">Origin unresolved after search</option>
           </select>
           <input
             className="textInput compactInput"
