@@ -42,6 +42,7 @@ export interface ArtifactRecord {
   storage_provider: string;
   storage_key: string;
   capture_method: string;
+  metadata: unknown;
   captured_at: Date;
   created_at: Date;
 }
@@ -154,6 +155,7 @@ export async function createArtifact(input: {
   storageKey: string;
   role?: string;
   captureMethod?: string;
+  metadata?: unknown;
 }): Promise<ArtifactRecord> {
   const sql = db();
   const id = input.id ?? "ART-" + randomUUID();
@@ -169,7 +171,8 @@ export async function createArtifact(input: {
       sha256,
       storage_provider,
       storage_key,
-      capture_method
+      capture_method,
+      metadata
     )
     VALUES (
       ${id},
@@ -181,7 +184,8 @@ export async function createArtifact(input: {
       ${input.sha256},
       'NETLIFY_BLOBS',
       ${input.storageKey},
-      ${input.captureMethod ?? "USER_UPLOAD"}
+      ${input.captureMethod ?? "USER_UPLOAD"},
+      ${sql.json((input.metadata ?? {}) as never)}
     )
     RETURNING *
   `;
@@ -242,6 +246,7 @@ export async function ensureArtifactSources(
             mimeType: artifact.mime_type,
             byteSize: Number(artifact.byte_size),
             captureMethod: artifact.capture_method,
+            extractedMetadata: artifact.metadata,
           } as never)}
         )
       `;
