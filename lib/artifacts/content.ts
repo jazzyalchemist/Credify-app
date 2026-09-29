@@ -178,3 +178,58 @@ export function artifactNeedsQuantitativeForensics(mimeType: string) {
     "application/vnd.ms-excel",
   ].includes(mimeType);
 }
+
+
+export function artifactMediaApplicability(mimeType: string):
+  | "NOT_APPLICABLE"
+  | "IMAGE"
+  | "PDF"
+  | "OTHER_MEDIA" {
+  if (artifactIsImage(mimeType)) return "IMAGE";
+  if (mimeType === "application/pdf") return "PDF";
+
+  if (
+    mimeType.startsWith("video/") ||
+    mimeType.startsWith("audio/")
+  ) {
+    return "OTHER_MEDIA";
+  }
+
+  return "NOT_APPLICABLE";
+}
+
+export function artifactMetadataStatus(
+  artifact: ArtifactRecord | null,
+):
+  | "NOT_APPLICABLE"
+  | "NOT_PROVIDED"
+  | "PARTIAL"
+  | "AVAILABLE" {
+  if (!artifact) return "NOT_APPLICABLE";
+
+  const applicability = artifactMediaApplicability(artifact.mime_type);
+  if (applicability === "NOT_APPLICABLE") return "NOT_APPLICABLE";
+
+  const metadata =
+    artifact.metadata &&
+    typeof artifact.metadata === "object" &&
+    !Array.isArray(artifact.metadata)
+      ? (artifact.metadata as Record<string, unknown>)
+      : {};
+
+  const extraction =
+    metadata.extraction &&
+    typeof metadata.extraction === "object" &&
+    !Array.isArray(metadata.extraction)
+      ? (metadata.extraction as Record<string, unknown>)
+      : {};
+
+  const status =
+    typeof extraction.status === "string"
+      ? extraction.status
+      : null;
+
+  if (status === "AVAILABLE") return "AVAILABLE";
+
+  return "NOT_PROVIDED";
+}
