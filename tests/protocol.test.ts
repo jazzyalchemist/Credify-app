@@ -28,6 +28,7 @@ function state(
     sourceIndependenceAssessed: true,
     unresolvedInformationOrigin: false,
     claimSynthesisComplete: true,
+    researchSaturationStatus: "CONVERGED",
     preRedTeamFrozen: true,
     redTeamCompleted: true,
     reconciliationCompleted: true,
@@ -153,4 +154,23 @@ test("unresolved information origin survives into final confidence warnings", ()
   );
   assert.equal(result.allowed, true);
   assert.match(result.warnings.join(" "), /independent corroboration/i);
+});
+
+
+test("pre-RedTeam is blocked when research saturation requires more work", () => {
+  const result = canEnterPhase(
+    "PRE_REDTEAM",
+    state({ researchSaturationStatus: "CONTINUE_REQUIRED" }),
+  );
+  assert.equal(result.allowed, false);
+  assert.match(result.blockers.join(" "), /CONTINUE_REQUIRED/);
+});
+
+test("provisional research stop can enter pre-RedTeam only with warning", () => {
+  const result = canEnterPhase(
+    "PRE_REDTEAM",
+    state({ researchSaturationStatus: "PROVISIONAL_STOP" }),
+  );
+  assert.equal(result.allowed, true);
+  assert.match(result.warnings.join(" "), /provisionally/i);
 });
