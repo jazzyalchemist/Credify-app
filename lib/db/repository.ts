@@ -13,6 +13,7 @@ import type {
 import { canEnterPhase } from "@/lib/protocol/gates";
 import { getLatestReport } from "./reports";
 import { rebuildEvidenceChains } from "./evidence";
+import { canonicalJsonString } from "@/lib/crypto/canonical-json";
 
 export interface CreateInvestigationInput {
   title: string;
@@ -777,6 +778,19 @@ export async function freezePreRedTeamDossier(investigationId: string) {
     throw new Error("The pre-RedTeam dossier is already frozen.");
   }
 
+  const [activeJobs] = await sql<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count
+    FROM ai_jobs
+    WHERE investigation_id = ${investigationId}
+      AND status IN ('QUEUED', 'IN_PROGRESS', 'PROCESSING')
+  `;
+
+  if (activeJobs.count > 0) {
+    throw new Error(
+      "Wait for all background AI jobs to finish or fail before freezing the dossier.",
+    );
+  }
+
   const preRedTeamReport = await getLatestReport(
     investigationId,
     "PRE_REDTEAM",
@@ -793,20 +807,68 @@ export async function freezePreRedTeamDossier(investigationId: string) {
     state,
     claimSourceEdges,
     evidenceChains,
+    credibilityAssessments,
     searchLogs,
     retrievalLogs,
+    aiJobs,
+    auditEvents,
   ] = await Promise.all([
     getClaims(investigationId),
     getSources(investigationId),
     buildInvestigationState(investigationId),
-    sql`SELECT * FROM claim_source_edges WHERE investigation_id = ${investigationId} ORDER BY created_at ASC`,
-    sql`SELECT * FROM evidence_chains WHERE investigation_id = ${investigationId} ORDER BY created_at ASC`,
-    sql`SELECT * FROM search_logs WHERE investigation_id = ${investigationId} ORDER BY executed_at ASC`,
-    sql`SELECT * FROM retrieval_logs WHERE investigation_id = ${investigationId} ORDER BY attempted_at ASC`,
+    sql`
+      SELECT *
+      FROM claim_source_edges
+      WHERE investigation_id = ${investigationId}
+      ORDER BY created_at ASC, id ASC
+    `,
+    sql`
+      SELECT *
+      FROM evidence_chains
+      WHERE investigation_id = ${investigationId}
+      ORDER BY created_at ASC, id ASC
+    `,
+    sql`
+      SELECT *
+      FROM credibility_assessments
+      WHERE investigation_id = ${investigationId}
+      ORDER BY subject_type ASC, subject_id ASC, stage ASC, id ASC
+    `,
+    sql`
+      SELECT *
+      FROM search_logs
+      WHERE investigation_id = ${investigationId}
+      ORDER BY executed_at ASC, id ASC
+    `,
+    sql`
+      SELECT *
+      FROM retrieval_logs
+      WHERE investigation_id = ${investigationId}
+      ORDER BY attempted_at ASC, id ASC
+    `,
+    sql`
+      SELECT *
+      FROM ai_jobs
+      WHERE investigation_id = ${investigationId}
+      ORDER BY created_at ASC, id ASC
+    `,
+    sql`
+      SELECT *
+      FROM audit_events
+      WHERE investigation_id = ${investigationId}
+      ORDER BY created_at ASC, id ASC
+    `,
   ]);
 
   const frozenAt = new Date();
   const snapshot = {
+    snapshotVersion: 2,
+    hashSpecification: {
+      algorithm: "SHA-256",
+      serialization: "credify-canonical-json-v1",
+      objectKeyOrdering: "lexicographic-recursive",
+      arrayOrdering: "explicit-query-order",
+    },
     frozenAt: frozenAt.toISOString(),
     protocol: investigation.protocol_snapshot,
     investigation: {
@@ -815,27 +877,36 @@ export async function freezePreRedTeamDossier(investigationId: string) {
       inputMaterial: investigation.input_material,
       mode: investigation.investigation_mode,
       phase: investigation.current_phase,
+      protocolVersion: investigation.protocol_version,
+      protocolCommit: investigation.protocol_commit,
     },
     state,
     claims,
     sources,
     claimSourceEdges,
     evidenceChains,
+    credibilityAssessments,
     searchLogs,
     retrievalLogs,
+    aiJobs,
+    auditEventsBeforeFreeze: auditEvents,
     preRedTeamReport: {
       id: preRedTeamReport.id,
       sha256: preRedTeamReport.sha256,
       structuredContent: preRedTeamReport.structured_content,
       markdownContent: preRedTeamReport.markdown_content,
+      model: preRedTeamReport.model,
+      aiJobId: preRedTeamReport.ai_job_id,
       createdAt: preRedTeamReport.created_at,
     },
   };
 
-  const canonicalJson = JSON.stringify(snapshot);
-  const snapshotHash = createHash("sha256").update(canonicalJson).digest("hex");
+  const canonicalJson = canonicalJsonString(snapshot);
+  const snapshotHash = createHash("sha256")
+    .update(canonicalJson)
+    .digest("hex");
 
-  const [row] = await sql<InvestigationRecord[]>`
+  const rows = await sql<InvestigationRecord[]>`
     UPDATE investigations
     SET
       pre_redteam_snapshot = ${sql.json(snapshot as never)},
@@ -843,15 +914,40 @@ export async function freezePreRedTeamDossier(investigationId: string) {
       pre_redteam_frozen_at = ${frozenAt},
       updated_at = NOW()
     WHERE id = ${investigationId}
+      AND current_phase = 'PRE_REDTEAM'
+      AND pre_redteam_frozen_at IS NULL
     RETURNING *
   `;
 
+  if (rows.length !== 1) {
+    throw new Error(
+      "The dossier was frozen by another request before this freeze could commit.",
+    );
+  }
+
   await appendAuditEvent(investigationId, "PRE_REDTEAM_DOSSIER_FROZEN", {
     sha256: snapshotHash,
+    snapshotVersion: 2,
+    serialization: "credify-canonical-json-v1",
     frozenAt: frozenAt.toISOString(),
+    counts: {
+      claims: claims.length,
+      sources: sources.length,
+      credibilityAssessments: credibilityAssessments.length,
+      claimSourceEdges: claimSourceEdges.length,
+      evidenceChains: evidenceChains.length,
+      searchLogs: searchLogs.length,
+      retrievalLogs: retrievalLogs.length,
+      aiJobs: aiJobs.length,
+      auditEventsBeforeFreeze: auditEvents.length,
+    },
   });
 
-  return { investigation: row, sha256: snapshotHash };
+  return {
+    investigation: rows[0],
+    sha256: snapshotHash,
+    snapshotVersion: 2,
+  };
 }
 
 export async function appendAuditEvent(
