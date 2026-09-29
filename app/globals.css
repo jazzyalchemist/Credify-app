@@ -1960,3 +1960,99 @@ a {
     padding: 4px 18px 20px;
   }
 }
+
+
+.readinessSummary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--line);
+  box-shadow: 0 10px 30px rgba(24,35,48,0.04);
+}
+
+.readinessSummary > div {
+  padding: 19px;
+  background: rgba(255,255,255,0.92);
+}
+
+.readinessSummary strong {
+  font-size: 20px;
+  letter-spacing: -0.035em;
+}
+
+.readinessGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.readinessCard {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.9);
+}
+
+.readinessCard.ready {
+  background: #f4f8f6;
+}
+
+.readinessCard.notReady {
+  background: #faf6ed;
+}
+
+.readinessTop {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.readinessDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+.readinessCard.ready .readinessDot {
+  background: var(--good);
+}
+
+.readinessCard p {
+  margin: 13px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 11px;
+}
+
+.runtimeNotes {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.88);
+}
+
+.runtimeNotes ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.readyNote {
+  background: #f1f7f4;
+}
+
+@media (max-width: 720px) {
+  .readinessSummary,
+  .readinessGrid {
+    grid-template-columns: 1fr;
+  }
+}
