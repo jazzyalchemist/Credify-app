@@ -206,8 +206,13 @@ export function NewInvestigationForm() {
         </strong>
         <span>
           PDF, image, text, data, Word, Excel, or PowerPoint · up to 8 files ·
-          4 MB each
+          4 MB each · 16 MB total
         </span>
+        <small className="artifactPrivacyNote">
+          AI research stages send integrity-verified artifact bytes and relevant
+          extracted metadata to the configured OpenAI API for analysis. Image
+          metadata can include device, time, or location information.
+        </small>
       </label>
 
       {files.length > 0 ? (
