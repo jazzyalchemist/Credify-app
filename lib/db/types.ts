@@ -32,6 +32,7 @@ export interface ClaimRecord {
   final_confidence: string | null;
   final_wording: string | null;
   final_rationale: string | null;
+  final_evidence_trace: unknown;
   requires_primary_evidence: boolean;
   primary_evidence_recovered: boolean;
   critical_failure: boolean;
