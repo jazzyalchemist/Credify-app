@@ -247,6 +247,27 @@ historical/cultural/temporal context, and media/digital authenticity.
 
 
 
+
+FRAMING / MANIPULATION INDICATOR CONTRACT:
+- Always return framing_manipulation_audit.
+- Record observable patterns such as loaded language, false dilemmas, decontextualized
+  quotes, selective statistics, unnamed authority, fear appeals, excessive certainty,
+  conspiratorial framing, scapegoating, manufactured-consensus signals, astroturfing
+  signals, amplification patterns, or misleading headline/body mismatch only when
+  the source/evidence actually supports the observation.
+- These indicators are scrutiny triggers, not proof that the underlying factual claim
+  is false.
+- Do not infer deceptive intent from persuasive effect, rhetoric, institutional
+  position, or political/ideological orientation alone. Use INTENT_EVIDENCE_PRESENT
+  only when separate evidence supports intent; otherwise use NO_INTENT_INFERENCE or
+  INTENT_UNRESOLVED.
+- Use MATERIAL_EVIDENCE_IMPACT_IDENTIFIED only when the framing pattern materially
+  alters evidence selection, definitions, denominators, context, or the inference a
+  reader would draw. Otherwise use NO_DIRECT_TRUTH_INFERENCE.
+- Every indicator evidence_urls entry must be an admitted web-search/source URL.
+- False balance is also a framing error: do not manufacture symmetry between
+  evidentiary positions merely because multiple viewpoints exist.
+
 IDENTITY / AFFILIATION VERIFICATION CONTRACT:
 - Always return identity_affiliation_audit.
 - Separate claimed credentials from credentials you can independently verify.
