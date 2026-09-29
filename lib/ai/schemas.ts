@@ -369,6 +369,84 @@ export const SOURCE_AUDIT_SCHEMA = {
       ],
       additionalProperties: false,
     },
+    framing_manipulation_audit: {
+      type: "object",
+      properties: {
+        indicators: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              category: {
+                type: "string",
+                enum: [
+                  "LOADED_LANGUAGE",
+                  "FALSE_DILEMMA",
+                  "DECONTEXTUALIZED_QUOTE",
+                  "SELECTIVE_STATISTICS",
+                  "UNNAMED_AUTHORITY",
+                  "FEAR_APPEAL",
+                  "EXCESSIVE_CERTAINTY",
+                  "CONSPIRATORIAL_FRAMING",
+                  "SCAPEGOATING",
+                  "MANUFACTURED_CONSENSUS",
+                  "ASTROTURFING_SIGNAL",
+                  "AMPLIFICATION_PATTERN",
+                  "MISLEADING_HEADLINE",
+                  "OTHER",
+                ],
+              },
+              observation: { type: "string" },
+              materiality: {
+                type: "string",
+                enum: ["LOW", "MATERIAL", "CRITICAL"],
+              },
+              evidence_urls: {
+                type: "array",
+                items: { type: "string" },
+              },
+              inference_limit: { type: "string" },
+            },
+            required: [
+              "category",
+              "observation",
+              "materiality",
+              "evidence_urls",
+              "inference_limit",
+            ],
+            additionalProperties: false,
+          },
+        },
+        overall_framing_finding: { type: "string" },
+        intent_evidence_status: {
+          type: "string",
+          enum: [
+            "NO_INTENT_INFERENCE",
+            "INTENT_EVIDENCE_PRESENT",
+            "INTENT_UNRESOLVED",
+          ],
+        },
+        truth_status_implication: {
+          type: "string",
+          enum: [
+            "NO_DIRECT_TRUTH_INFERENCE",
+            "MATERIAL_EVIDENCE_IMPACT_IDENTIFIED",
+          ],
+        },
+        unresolved_framing_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "indicators",
+        "overall_framing_finding",
+        "intent_evidence_status",
+        "truth_status_implication",
+        "unresolved_framing_questions",
+      ],
+      additionalProperties: false,
+    },
     source_ecosystem_audit: {
       type: "object",
       properties: {
@@ -845,6 +923,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "author_expertise_summary",
     "institutional_analysis",
     "identity_affiliation_audit",
+    "framing_manipulation_audit",
     "source_ecosystem_audit",
     "peer_review_status",
     "correction_retraction_status",
