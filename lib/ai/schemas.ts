@@ -245,6 +245,10 @@ export const SOURCE_AUDIT_SCHEMA = {
       enum: ["VERIFIED", "PARTIAL", "FAILED"],
     },
     information_origin_url: { type: "string" },
+    information_origin_status: {
+      type: "string",
+      enum: ["VERIFIED", "UNRESOLVED"],
+    },
     author: { type: "string" },
     institution: { type: "string" },
     author_expertise_summary: { type: "string" },
@@ -274,6 +278,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "primary_or_secondary",
     "provenance_status",
     "information_origin_url",
+    "information_origin_status",
     "author",
     "institution",
     "author_expertise_summary",
