@@ -286,6 +286,39 @@ Table: `audit_events`
 
 The frozen Page-1 dossier contains the full audit chronology that existed before the freeze event itself.
 
-## Not implemented in v0.1
+## Artifact
 
-There is currently **no object-storage Artifact table** for uploaded files, images, datasets, archived webpages, or binary evidence. Adding binary/file ingestion requires a future schema and provenance design; it should not be inferred from this v0.1 data model.
+Table: `artifacts`
+
+- `id`
+- `investigation_id`
+- `source_id`
+- `role`
+- `original_filename`
+- `mime_type`
+- `byte_size`
+- `sha256`
+- `storage_provider`
+- `storage_key`
+- `capture_method`
+- `metadata`
+- `captured_at`
+- `created_at`
+
+Raw bytes are stored outside PostgreSQL in Netlify Blobs. PostgreSQL stores the
+forensic identity/provenance record. Model analysis and downloads re-read the raw
+bytes and verify byte size + SHA-256 against this row before use.
+
+`metadata` contains a bounded extraction envelope. For supported images it records
+the metadata parser/status and sanitized EXIF/GPS/IFD values; an empty or failed
+parse remains explicit rather than being interpreted as proof that metadata never
+existed.
+
+Artifact/source linkage is explicit through `source_id`; submitted artifacts do
+not become trusted evidence merely because their bytes match the stored hash.
+
+## v0.1 binary-evidence boundary
+
+Credify does not currently ingest audio or video files as model evidence, and it
+does not provide a native reverse-image-matching engine. Those limitations are
+reported explicitly rather than simulated.
