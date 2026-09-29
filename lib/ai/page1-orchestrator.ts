@@ -1112,6 +1112,34 @@ export async function processSourceAuditResponse(
     );
   }
 
+  const framingAudit = output.framing_manipulation_audit;
+  const materialFramingIndicators = framingAudit.indicators.filter(
+    (indicator) =>
+      indicator.materiality === "MATERIAL" ||
+      indicator.materiality === "CRITICAL",
+  );
+
+  if (
+    framingAudit.intent_evidence_status === "INTENT_EVIDENCE_PRESENT" &&
+    !framingAudit.indicators.some(
+      (indicator) => indicator.evidence_urls.length > 0,
+    )
+  ) {
+    throw new Error(
+      "Framing audit claimed evidence of manipulative intent without any supporting evidence URL.",
+    );
+  }
+
+  if (
+    framingAudit.truth_status_implication ===
+      "MATERIAL_EVIDENCE_IMPACT_IDENTIFIED" &&
+    materialFramingIndicators.length === 0
+  ) {
+    throw new Error(
+      "Framing audit claimed a material evidentiary impact without any MATERIAL or CRITICAL indicator.",
+    );
+  }
+
   const ecosystem = output.source_ecosystem_audit;
 
   if (
