@@ -93,6 +93,17 @@ type SourceAuditOutput = {
     unresolved_questions: string[];
   };
   historical_cultural_temporal_context: string;
+  url_forensics: {
+    applicability: "NOT_APPLICABLE" | "URL_SOURCE";
+    canonical_page_finding: string;
+    domain_ownership_affiliation_finding: string;
+    archive_historical_version_finding: string;
+    redirect_lookalike_risk_finding: string;
+    update_correction_policy_finding: string;
+    earliest_publication_finding: string;
+    unavailable_technical_checks: string[];
+    unresolved_url_questions: string[];
+  };
   media_digital_authenticity_summary: string;
   media_forensics: {
     applicability: "NOT_APPLICABLE" | "IMAGE" | "PDF" | "OTHER_MEDIA";
