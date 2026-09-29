@@ -11,6 +11,10 @@ import {
 } from "@/lib/db/repository";
 import { createSearchLog } from "@/lib/db/evidence";
 import {
+  upsertCredibilityAssessment,
+  type DimensionScores,
+} from "@/lib/db/credibility";
+import {
   applyFinalClaimAssessment,
   createChallenge,
   createReconciliation,
@@ -89,6 +93,9 @@ type RedTeamOutput = {
 
 type ReconciliationOutput = {
   summary: string;
+  investigation_dimension_scores: DimensionScores;
+  investigation_critical_failures: string[];
+  investigation_rationale: string;
   adjudications: Array<{
     challenge_id: string;
     classification:
@@ -782,10 +789,34 @@ export async function processReconciliationResponse(
     });
   }
 
+  const investigationAssessment = await upsertCredibilityAssessment({
+    investigationId: job.investigation_id,
+    subjectType: "INVESTIGATION",
+    subjectId: job.investigation_id,
+    stage: "FINAL",
+    dimensionScores: output.investigation_dimension_scores,
+    criticalFailures: output.investigation_critical_failures,
+    rationale: {
+      overall: output.investigation_rationale,
+      basis:
+        "Final investigation-level matrix reflects evidence surviving independent rival review and blind reconciliation; it is not a vote count or arithmetic average.",
+    },
+    evidenceRefs: [
+      ...claims.map((claim) => claim.id),
+      ...challenges.map((challenge) => challenge.id),
+    ],
+  });
+
   const result = {
     summary: output.summary,
     reconciliationIds,
     finalClaims: output.final_claims,
+    investigationMatrix: {
+      totalScore: Number(investigationAssessment.total_score),
+      dimensionScores: output.investigation_dimension_scores,
+      criticalFailures: output.investigation_critical_failures,
+      rationale: output.investigation_rationale,
+    },
     webQueries: queries,
     toolSources,
   };
@@ -795,6 +826,9 @@ export async function processReconciliationResponse(
     challengeCount: challenges.length,
     claimCount: claims.length,
     reconciliationCount: reconciliationIds.length,
+    finalInvestigationScore: Number(investigationAssessment.total_score),
+    finalInvestigationCriticalFailureCount:
+      output.investigation_critical_failures.length,
     toolSourceCount: toolSources.length,
   });
 
