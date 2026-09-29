@@ -67,6 +67,12 @@ silently resolving them.
 export function discoveryPrompt(
   investigation: InvestigationRecord,
   claims: ClaimRecord[],
+  plannedSearchStrategy: {
+    languages: string[];
+    jurisdictions: string[];
+    evidence_streams: string[];
+    opposing_queries: string[];
+  } | null = null,
 ) {
   const claimBlock = claims
     .map((claim) => `${claim.id}: [${claim.claim_type}] ${claim.text}`)
@@ -83,6 +89,21 @@ ${investigation.investigation_mode}
 
 Claims:
 ${claimBlock}
+
+${plannedSearchStrategy ? `
+Planned global/contextual coverage from claim decomposition:
+${JSON.stringify(plannedSearchStrategy, null, 2)}
+
+Treat this as an execution plan, not as evidence. Make a serious attempt to cover the
+planned languages, jurisdictions, evidence streams, and opposing queries when they
+are relevant and feasible. If any planned stream cannot be executed or produces no
+credible evidence, preserve that limitation in coverage_gaps rather than silently
+dropping it.
+` : `
+No completed decomposition search strategy is available (for example, claims may
+have been entered manually). Perform globally/contextually appropriate discovery
+based on the claims and record any resulting coverage limitations explicitly.
+`}
 
 Requirements:
 1. Search for strong primary evidence for each material claim.
