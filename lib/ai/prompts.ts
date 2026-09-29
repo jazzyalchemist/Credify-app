@@ -353,6 +353,13 @@ Confidence and matrix score are different concepts. A matrix score describes the
 quality/integrity of the evidentiary basis; confidence describes how strongly the
 surviving evidence supports the proposition.
 
+Also return investigation_dimension_scores for the investigation as a whole, plus
+investigation_critical_failures and investigation_rationale. This overall matrix is
+NOT an average of source or claim scores. Evaluate the integrity, provenance,
+methodology, data quality, independence, transparency, context, corrections, media
+authenticity, and adversarial resilience of the combined evidentiary system. Do not
+compute the numeric total yourself; Credify computes it server-side.
+
 Use UNKNOWN where the evidence does not permit a defensible conclusion. Do not
 force closure. Equal scrutiny does not require equal weight when evidence quality is
 asymmetric.
