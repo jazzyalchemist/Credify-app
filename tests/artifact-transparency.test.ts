@@ -19,7 +19,10 @@ test("file intake discloses AI artifact and metadata processing", () => {
 
 test("artifact workspace repeats the external AI processing boundary", () => {
   assert.match(artifactPanel, /configured OpenAI API/);
-  assert.match(artifactPanel, /device, timestamp, or location fields/i);
+  assert.match(
+    artifactPanel,
+    /device,[\s\S]*timestamp,[\s\S]*location fields/i,
+  );
 });
 
 test("UI does not advertise unsupported video ingestion", () => {
