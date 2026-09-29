@@ -64,3 +64,16 @@ test("late pre-RedTeam report completion is rejected after freeze", () => {
   );
   assert.match(source, /stage === "PRE_REDTEAM" && investigation\.pre_redteam_frozen_at/);
 });
+
+
+test("claim and source ledgers have deterministic secondary ordering", () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), "lib", "db", "repository.ts"),
+    "utf8",
+  );
+  const matches = source.match(/ORDER BY created_at ASC, id ASC/g) ?? [];
+  assert.ok(
+    matches.length >= 2,
+    "Claims and sources must both order by created_at then id.",
+  );
+});
