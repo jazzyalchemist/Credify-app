@@ -41,6 +41,8 @@ import {
 } from "./schemas";
 import { loadCanonicalInitialProtocol } from "@/lib/protocol/canonical";
 import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
+import { listArtifacts } from "@/lib/db/artifacts";
+import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
 
 type ScreeningOutput = {
   decisions: Array<{
@@ -261,12 +263,19 @@ export async function startSourceAudits(
 
   await ensureNoActiveNonAuditJob(investigationId);
 
-  const [claims, sources, assessments, jobs] = await Promise.all([
+  const [claims, sources, assessments, jobs, artifacts] = await Promise.all([
     getClaims(investigationId),
     getSources(investigationId),
     listCredibilityAssessments(investigationId),
     listAiJobs(investigationId),
+    listArtifacts(investigationId),
   ]);
+
+  const artifactBySourceId = new Map(
+    artifacts
+      .filter((artifact) => artifact.source_id)
+      .map((artifact) => [artifact.source_id as string, artifact]),
+  );
 
   const included = sources.filter(
     (source) =>
@@ -320,6 +329,18 @@ export async function startSourceAudits(
 
   for (const source of pending) {
     try {
+      const artifact = artifactBySourceId.get(source.id) ?? null;
+      const artifactPart = artifact
+        ? await loadVerifiedArtifactInputPart(artifact)
+        : null;
+      const userContent = [
+        {
+          type: "input_text",
+          text: sourceAuditPrompt(investigation, source, claims, artifact),
+        },
+        ...(artifactPart ? [artifactPart] : []),
+      ];
+
       const requestPayload = {
         model,
         reasoning: { effort: "high" },
@@ -327,9 +348,9 @@ export async function startSourceAudits(
           {
             type: "web_search",
             search_context_size: "high",
-},
+          },
         ],
-        tool_choice: "required",
+        tool_choice: artifact ? "auto" : "required",
         include: ["web_search_call.action.sources"],
         input: [
           {
@@ -338,7 +359,7 @@ export async function startSourceAudits(
           },
           {
             role: "user",
-            content: sourceAuditPrompt(investigation, source, claims),
+            content: userContent,
           },
         ],
         text: {
@@ -362,6 +383,8 @@ export async function startSourceAudits(
           purpose: "source_credibility_audit",
           protocolCommit: investigation.protocol_commit,
           sourceId: source.id,
+          artifactId: artifact?.id ?? null,
+          artifactSha256: artifact?.sha256 ?? null,
         },
         subjectId: source.id,
       });
