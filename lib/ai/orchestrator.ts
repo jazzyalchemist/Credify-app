@@ -85,6 +85,10 @@ function mapExternalStatus(status: string) {
   return "FAILED" as const;
 }
 
+function inputContainsUrl(value: string) {
+  return /https?:\/\/[^\s<>"')\]]+/i.test(value);
+}
+
 function normalizedUrl(value: string) {
   try {
     const url = new URL(value);
@@ -140,7 +144,9 @@ export async function startDecomposition(investigationId: string) {
         search_context_size: "high",
       },
     ],
-    tool_choice: "auto",
+    tool_choice: inputContainsUrl(investigation.input_material)
+      ? "required"
+      : "auto",
     include: ["web_search_call.action.sources"],
     input: [
       {
