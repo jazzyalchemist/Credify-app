@@ -138,6 +138,9 @@ type SynthesisOutput = {
     critical_failure: boolean;
     dimension_scores: DimensionScores;
   }>;
+  investigation_dimension_scores: DimensionScores;
+  investigation_critical_failures: string[];
+  investigation_rationale: string;
   executive_finding: string;
   strongest_supporting_evidence: string[];
   strongest_contrary_evidence: string[];
@@ -997,12 +1000,33 @@ export async function processSynthesisResponse(
     });
   }
 
+  const investigationAssessment = await upsertCredibilityAssessment({
+    investigationId: job.investigation_id,
+    subjectType: "INVESTIGATION",
+    subjectId: job.investigation_id,
+    stage: "FIRST_PASS",
+    dimensionScores: output.investigation_dimension_scores,
+    criticalFailures: output.investigation_critical_failures,
+    rationale: {
+      overall: output.investigation_rationale,
+      basis:
+        "Investigation-level matrix evaluates the integrity and resilience of the full evidentiary system; it is not an arithmetic average of source or claim scores.",
+    },
+    evidenceRefs: included.map((source) => source.id),
+  });
+
   const result = {
     executiveFinding: output.executive_finding,
     strongestSupportingEvidence: output.strongest_supporting_evidence,
     strongestContraryEvidence: output.strongest_contrary_evidence,
     counterHypothesesTested: output.counter_hypotheses_tested,
     knownUnknowns: output.known_unknowns,
+    investigationMatrix: {
+      totalScore: Number(investigationAssessment.total_score),
+      dimensionScores: output.investigation_dimension_scores,
+      criticalFailures: output.investigation_critical_failures,
+      rationale: output.investigation_rationale,
+    },
     appliedClaims: applied,
   };
 
