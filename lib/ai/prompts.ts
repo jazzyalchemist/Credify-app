@@ -222,6 +222,27 @@ methodology, data/statistics, funding/conflicts, transparency/reproducibility,
 historical/cultural/temporal context, and media/digital authenticity.
 
 
+
+METHODOLOGICAL STANDARDS CONTRACT:
+- Always return methodology_standards before judging methodological quality.
+- Identify the actual source domain and source/study design first.
+- Select only standards that genuinely apply to that design. Examples may include
+  PRISMA/AMSTAR for systematic reviews, CONSORT for randomized trials, STROBE for
+  observational research, relevant risk-of-bias tools, COPE/ICMJE publication-
+  integrity guidance, field-specific reporting standards, historiographic source
+  criticism, journalistic verification standards, or other discipline-appropriate
+  frameworks.
+- Do NOT mechanically apply biomedical evidence hierarchies or reporting checklists
+  to history, journalism, law, public records, cultural analysis, or other domains
+  where they do not fit.
+- Put commonly tempting but inapplicable standards in
+  intentionally_inapplicable_standards and explain why they do not belong.
+- standards_evidence_urls must contain only URLs actually returned by web search or
+  the audited source URL, and should point to authoritative/current descriptions of
+  the selected standards when such verification is material.
+- Missing or inaccessible standards guidance belongs in
+  unresolved_standards_questions; do not invent requirements.
+
 TEMPORAL VERIFICATION CONTRACT:
 - Always return temporal_verification.
 - Distinguish publication date, last-update date, and the time period the evidence
