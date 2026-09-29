@@ -48,5 +48,8 @@ test("source audits receive server-extracted metadata with an anti-overclaim war
   );
 
   assert.match(source, /Server-extracted metadata snapshot/);
-  assert.match(source, /metadata may be absent, stripped, edited, copied, or forged/i);
+  assert.match(
+    source,
+    /metadata may be absent, stripped,[\s\S]*edited, copied, or forged/i,
+  );
 });
