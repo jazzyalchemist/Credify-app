@@ -5,6 +5,7 @@ import {
   getSources,
   updateClaim,
   updateSource,
+  setResearchSaturation,
 } from "@/lib/db/repository";
 import {
   listAiJobs,
@@ -307,6 +308,24 @@ type SynthesisOutput = {
   investigation_dimension_scores: DimensionScores;
   investigation_critical_failures: string[];
   investigation_rationale: string;
+  research_saturation: {
+    status: "CONVERGED" | "PROVISIONAL_STOP" | "CONTINUE_REQUIRED";
+    convergence_basis: string[];
+    reasons_to_continue: Array<
+      | "MISSING_REQUIRED_PRIMARY_EVIDENCE"
+      | "UNRESOLVED_MATERIAL_CONFLICT"
+      | "UNRESOLVED_PROVENANCE_OR_ORIGIN"
+      | "UNREPRODUCED_MATERIAL_STATISTICS"
+      | "MATERIAL_CITATION_UNVERIFIED"
+      | "GLOBAL_OR_LINGUISTIC_COVERAGE_GAP"
+      | "SOURCE_INDEPENDENCE_UNRESOLVED"
+      | "MATERIAL_COUNTEREVIDENCE_UNRESOLVED"
+      | "OTHER"
+    >;
+    residual_gaps: string[];
+    additional_searches_needed: string[];
+    stop_rationale: string;
+  };
   executive_finding: string;
   strongest_supporting_evidence: string[];
   strongest_contrary_evidence: string[];
@@ -1373,6 +1392,60 @@ export async function processSynthesisResponse(
     }
   }
 
+  const saturation = output.research_saturation;
+
+  if (
+    saturation.status === "CONVERGED" &&
+    saturation.convergence_basis.length === 0
+  ) {
+    throw new Error(
+      "Research saturation cannot be CONVERGED without a documented convergence basis.",
+    );
+  }
+
+  if (
+    saturation.status === "CONVERGED" &&
+    saturation.reasons_to_continue.length > 0
+  ) {
+    throw new Error(
+      "Research saturation cannot be CONVERGED while reasons_to_continue remain.",
+    );
+  }
+
+  if (
+    saturation.status === "CONTINUE_REQUIRED" &&
+    saturation.reasons_to_continue.length === 0
+  ) {
+    throw new Error(
+      "CONTINUE_REQUIRED research saturation must identify at least one reason to continue.",
+    );
+  }
+
+  if (
+    saturation.status === "PROVISIONAL_STOP" &&
+    saturation.residual_gaps.length === 0
+  ) {
+    throw new Error(
+      "PROVISIONAL_STOP must preserve at least one explicit residual gap.",
+    );
+  }
+
+  const unresolvedOriginExists = included.some(
+    (source) => source.information_origin_status === "UNRESOLVED",
+  );
+  const outputConflictExists = output.claims.some(
+    (claimOutput) => claimOutput.unresolved_material_conflict,
+  );
+
+  if (
+    saturation.status === "CONVERGED" &&
+    (unresolvedOriginExists || outputConflictExists)
+  ) {
+    throw new Error(
+      "Research cannot be marked CONVERGED while material conflict or information-origin uncertainty remains.",
+    );
+  }
+
   const claimById = new Map(claims.map((claim) => [claim.id, claim]));
   const applied: Array<{
     claimId: string;
@@ -1463,6 +1536,29 @@ export async function processSynthesisResponse(
     });
   }
 
+  const synthesizedPrimaryGaps = output.claims.filter((claimOutput) => {
+    const claim = claimById.get(claimOutput.claim_id);
+    if (!claim?.requires_primary_evidence) return false;
+
+    return !claimOutput.evidence_source_ids
+      .map((id) => sourceById.get(id))
+      .some((source) => source?.primary_or_secondary === "PRIMARY");
+  });
+
+  if (
+    saturation.status === "CONVERGED" &&
+    synthesizedPrimaryGaps.length > 0
+  ) {
+    throw new Error(
+      "Research cannot be marked CONVERGED while claims requiring primary evidence still lack recovered primary support.",
+    );
+  }
+
+  await setResearchSaturation(job.investigation_id, {
+    status: saturation.status,
+    payload: saturation,
+  });
+
   const investigationAssessment = await upsertCredibilityAssessment({
     investigationId: job.investigation_id,
     subjectType: "INVESTIGATION",
@@ -1472,6 +1568,7 @@ export async function processSynthesisResponse(
     criticalFailures: output.investigation_critical_failures,
     rationale: {
       overall: output.investigation_rationale,
+      researchSaturation: output.research_saturation,
       basis:
         "Investigation-level matrix evaluates the integrity and resilience of the full evidentiary system; it is not an arithmetic average of source or claim scores.",
     },
@@ -1480,6 +1577,7 @@ export async function processSynthesisResponse(
 
   const result = {
     executiveFinding: output.executive_finding,
+    researchSaturation: output.research_saturation,
     strongestSupportingEvidence: output.strongest_supporting_evidence,
     strongestContraryEvidence: output.strongest_contrary_evidence,
     counterHypothesesTested: output.counter_hypotheses_tested,
