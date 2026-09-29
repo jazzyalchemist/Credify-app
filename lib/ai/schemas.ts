@@ -290,6 +290,56 @@ export const SOURCE_AUDIT_SCHEMA = {
     correction_retraction_status: { type: "string" },
     funding_conflicts: { type: "string" },
     methodology_summary: { type: "string" },
+    methodology_standards: {
+      type: "object",
+      properties: {
+        source_domain: { type: "string" },
+        source_design: { type: "string" },
+        applicable_standards: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              why_applicable: { type: "string" },
+            },
+            required: ["name", "why_applicable"],
+            additionalProperties: false,
+          },
+        },
+        intentionally_inapplicable_standards: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              why_not_applicable: { type: "string" },
+            },
+            required: ["name", "why_not_applicable"],
+            additionalProperties: false,
+          },
+        },
+        standards_evidence_urls: {
+          type: "array",
+          items: { type: "string" },
+        },
+        application_summary: { type: "string" },
+        unresolved_standards_questions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "source_domain",
+        "source_design",
+        "applicable_standards",
+        "intentionally_inapplicable_standards",
+        "standards_evidence_urls",
+        "application_summary",
+        "unresolved_standards_questions",
+      ],
+      additionalProperties: false,
+    },
     citation_integrity_summary: { type: "string" },
     data_integrity_summary: { type: "string" },
     quantitative_forensics: {
@@ -495,6 +545,7 @@ export const SOURCE_AUDIT_SCHEMA = {
     "correction_retraction_status",
     "funding_conflicts",
     "methodology_summary",
+    "methodology_standards",
     "citation_integrity_summary",
     "data_integrity_summary",
     "quantitative_forensics",
