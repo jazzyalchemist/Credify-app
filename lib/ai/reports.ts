@@ -112,9 +112,9 @@ function sourceCitationMap(
   );
 }
 
-function citedSourceIds(report: ReportOutput) {
+function citedRecordIds(report: ReportOutput) {
   const ids = new Set<string>();
-  const pattern = /\[(SRC-[A-Za-z0-9-]+)\]/g;
+  const pattern = /\[((?:SRC|CHL|REC)-[A-Za-z0-9-]+)\]/g;
 
   for (const value of Object.values(report)) {
     for (const match of value.matchAll(pattern)) {
@@ -127,21 +127,77 @@ function citedSourceIds(report: ReportOutput) {
 
 function validateReportCitations(
   report: ReportOutput,
+  stage: "PRE_REDTEAM" | "FINAL",
   sources: Awaited<ReturnType<typeof getSources>>,
+  challenges: Awaited<ReturnType<typeof listChallenges>>,
+  reconciliations: Awaited<ReturnType<typeof listReconciliations>>,
 ) {
-  const sourceById = sourceCitationMap(sources);
-  const cited = citedSourceIds(report);
-  const unknown = [...cited].filter((id) => !sourceById.has(id));
+  const sourceIds = new Set(sources.map((source) => source.id));
+  const challengeIds = new Set(challenges.map((challenge) => challenge.id));
+  const reconciliationIds = new Set(
+    reconciliations.map((reconciliation) => reconciliation.id),
+  );
+  const cited = citedRecordIds(report);
+  const unknown: string[] = [];
+  const forbiddenPageTwo: string[] = [];
+
+  let sourceCitationCount = 0;
+  let pageTwoCitationCount = 0;
+
+  for (const id of cited) {
+    if (id.startsWith("SRC-")) {
+      if (!sourceIds.has(id)) unknown.push(id);
+      else sourceCitationCount += 1;
+      continue;
+    }
+
+    if (id.startsWith("CHL-")) {
+      if (!challengeIds.has(id)) unknown.push(id);
+      else {
+        pageTwoCitationCount += 1;
+        if (stage === "PRE_REDTEAM") forbiddenPageTwo.push(id);
+      }
+      continue;
+    }
+
+    if (id.startsWith("REC-")) {
+      if (!reconciliationIds.has(id)) unknown.push(id);
+      else {
+        pageTwoCitationCount += 1;
+        if (stage === "PRE_REDTEAM") forbiddenPageTwo.push(id);
+      }
+    }
+  }
 
   if (unknown.length > 0) {
     throw new Error(
-      "Report cited unknown source IDs: " + unknown.join(", ") + ".",
+      "Report cited unknown evidence/adversarial record IDs: " +
+        unknown.join(", ") +
+        ".",
     );
   }
 
-  if (sources.length > 0 && cited.size === 0) {
+  if (forbiddenPageTwo.length > 0) {
     throw new Error(
-      "Report contains evaluated evidence but no validated [SRC-...] citations.",
+      "Pre-RedTeam report cited Page-2 records that did not exist at freeze time: " +
+        forbiddenPageTwo.join(", ") +
+        ".",
+    );
+  }
+
+  if (sources.length > 0 && sourceCitationCount === 0) {
+    throw new Error(
+      "Report contains evaluated source evidence but no validated [SRC-...] citations.",
+    );
+  }
+
+  if (
+    stage === "FINAL" &&
+    (challenges.length > 0 || reconciliations.length > 0) &&
+    pageTwoCitationCount === 0
+  ) {
+    throw new Error(
+      "Final report contains adversarial review history but no validated [CHL-...] or [REC-...] citations.",
     );
   }
 }
@@ -151,14 +207,82 @@ function renderCitationMarkdown(
   sources: Awaited<ReturnType<typeof getSources>>,
 ) {
   const sourceById = sourceCitationMap(sources);
+
   return value.replace(
-    /\[(SRC-[A-Za-z0-9-]+)\]/g,
+    /\[((?:SRC|CHL|REC)-[A-Za-z0-9-]+)\]/g,
     (token, id: string) => {
-      const source = sourceById.get(id);
-      if (!source?.url || !/^https?:\/\//i.test(source.url)) return token;
-      return "[" + id + "](" + source.url + ")";
+      if (id.startsWith("SRC-")) {
+        const source = sourceById.get(id);
+        if (!source?.url || !/^https?:\/\//i.test(source.url)) return token;
+        return "[" + id + "](" + source.url + ")";
+      }
+
+      return "[" + id + "](#adversarial-ledger)";
     },
   );
+}
+
+function acceptedChallengeUrls(evidence: unknown) {
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
+    return [] as string[];
+  }
+  const raw = (evidence as Record<string, unknown>).acceptedEvidenceUrls;
+  return Array.isArray(raw)
+    ? raw.filter((value): value is string => typeof value === "string")
+    : [];
+}
+
+function renderAdversarialAppendix(
+  challenges: Awaited<ReturnType<typeof listChallenges>>,
+  reconciliations: Awaited<ReturnType<typeof listReconciliations>>,
+) {
+  if (challenges.length === 0 && reconciliations.length === 0) return "";
+
+  const reconciliationByChallengeId = new Map(
+    reconciliations.map((item) => [item.challenge_id, item]),
+  );
+
+  const rows: string[] = [
+    "## Adversarial Ledger",
+    "",
+    "This appendix is generated from Credify's validated Page-2 records, not model-authored narrative.",
+    "",
+  ];
+
+  for (const challenge of challenges) {
+    const reconciliation = reconciliationByChallengeId.get(challenge.id);
+    rows.push("### " + challenge.id);
+    rows.push("");
+    rows.push("- Claim: " + challenge.claim_id);
+    rows.push("- Attack method: " + challenge.attack_method);
+    rows.push(
+      "- Reviewer proposed classification: " +
+        (challenge.proposed_classification ?? "not recorded"),
+    );
+
+    const urls = acceptedChallengeUrls(challenge.evidence);
+    if (urls.length > 0) {
+      rows.push("- Accepted challenge evidence:");
+      for (const url of urls) rows.push("  - " + url);
+    }
+
+    if (reconciliation) {
+      rows.push("- Reconciliation: " + reconciliation.id);
+      rows.push("- Judge classification: " + reconciliation.classification);
+      rows.push(
+        "- Independently reproduced: " +
+          (reconciliation.independently_reproduced ? "yes" : "no"),
+      );
+      rows.push("- Adjudication: " + reconciliation.adjudication);
+      if (reconciliation.unresolved_issue) {
+        rows.push("- Unresolved issue: " + reconciliation.unresolved_issue);
+      }
+    }
+
+    rows.push("");
+  }
+
+  return rows.join("\n");
 }
 
 function renderMarkdown(
@@ -166,6 +290,8 @@ function renderMarkdown(
   stage: "PRE_REDTEAM" | "FINAL",
   report: ReportOutput,
   sources: Awaited<ReturnType<typeof getSources>>,
+  challenges: Awaited<ReturnType<typeof listChallenges>>,
+  reconciliations: Awaited<ReturnType<typeof listReconciliations>>,
 ) {
   const heading =
     stage === "PRE_REDTEAM"
@@ -180,6 +306,11 @@ function renderMarkdown(
       renderCitationMarkdown(report[key].trim(), sources),
   ).join("\n\n---\n\n");
 
+  const appendix =
+    stage === "FINAL"
+      ? renderAdversarialAppendix(challenges, reconciliations)
+      : "";
+
   return [
     "# " + heading,
     "",
@@ -187,6 +318,7 @@ function renderMarkdown(
     "**Report stage:** " + stage,
     "",
     body,
+    ...(appendix ? ["", "---", "", appendix] : []),
     "",
   ].join("\n");
 }
