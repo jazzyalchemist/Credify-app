@@ -91,6 +91,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+export function hasWebSearchCall(response: OpenAIResponse) {
+  return (response.output ?? []).some(
+    (item) => isRecord(item) && item.type === "web_search_call",
+  );
+}
+
+export function extractCodeInterpreterUsage(response: OpenAIResponse) {
+  const containerIds = new Set<string>();
+  let callCount = 0;
+
+  for (const item of response.output ?? []) {
+    if (!isRecord(item) || item.type !== "code_interpreter_call") continue;
+    callCount += 1;
+
+    if (typeof item.container_id === "string") {
+      containerIds.add(item.container_id);
+    }
+  }
+
+  return {
+    used: callCount > 0,
+    callCount,
+    containerIds: [...containerIds],
+  };
+}
+
 export function extractOutputText(response: OpenAIResponse): string {
   const chunks: string[] = [];
   for (const item of response.output ?? []) {
