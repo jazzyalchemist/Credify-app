@@ -2088,3 +2088,89 @@ a.citationChip:hover {
   gap: 7px;
   align-items: center;
 }
+
+
+.artifactPanel {
+  position: relative;
+}
+
+.artifactDrop {
+  display: grid;
+  gap: 5px;
+  margin: 14px 0;
+  padding: 18px;
+  border: 1px dashed rgba(41, 86, 94, 0.28);
+  border-radius: 14px;
+  background: #f7faf9;
+  cursor: pointer;
+}
+
+.artifactDrop:hover {
+  border-color: rgba(41, 86, 94, 0.55);
+  background: #f2f7f6;
+}
+
+.artifactDrop input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.artifactDrop strong {
+  font-size: 13px;
+}
+
+.artifactDrop span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.artifactList {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.artifactCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fbfcfc;
+}
+
+.artifactIdentity h3 {
+  margin: 4px 0 3px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.artifactIdentity p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.artifactMeta {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.artifactMeta code {
+  overflow-wrap: anywhere;
+  font-size: 8px;
+}
+
+@media (max-width: 760px) {
+  .artifactCard {
+    grid-template-columns: 1fr;
+  }
+}
