@@ -148,3 +148,16 @@ export async function failAiJob(jobId: string, error: string): Promise<void> {
     WHERE id = ${jobId}
   `;
 }
+
+
+export const AI_PROCESSING_LEASE_MS = 10 * 60 * 1000;
+
+export function aiProcessingLeaseExpired(
+  job: Pick<AiJobRecord, "status" | "updated_at">,
+  nowMs = Date.now(),
+) {
+  if (job.status !== "PROCESSING") return false;
+  const updated = new Date(job.updated_at).getTime();
+  if (!Number.isFinite(updated)) return true;
+  return nowMs - updated > AI_PROCESSING_LEASE_MS;
+}
