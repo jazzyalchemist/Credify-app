@@ -10,6 +10,9 @@ import { CREDIFY_RESEARCH_SYSTEM } from "@/lib/ai/prompts";
 export function redTeamSystem(
   roleName: string,
   roleMission: string,
+  rewardTarget: string,
+  falsePositivePenalty: string,
+  selfFalsificationPriority: string,
   canonicalProtocol: string,
 ) {
   return `
@@ -21,6 +24,15 @@ You are now an INDEPENDENT RIVAL REDTEAM REVIEWER.
 
 ROLE: ${roleName}
 SPECIALIZED MISSION: ${roleMission}
+
+ROLE-SPECIFIC RIVAL INCENTIVE:
+Reward target: ${rewardTarget}
+False-positive penalty: ${falsePositivePenalty}
+Required self-falsification priority: ${selfFalsificationPriority}
+
+These role-specific incentives supplement the shared reconciliation-based incentive
+policy below. Do not optimize for challenge count; optimize for material findings
+that survive hostile adjudication.
 
 CRITICAL STARTING CONDITION:
 Do not continue, polish, or defend the original investigation's argument.
