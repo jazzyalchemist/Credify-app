@@ -129,11 +129,11 @@ export async function assertArtifactUploadAllowed(investigationId: string) {
   }
 
   const [stats] = await sql<
-    Array<{ count: number; total_bytes: number }>
+    Array<{ count: number; total_bytes: string }>
   >`
     SELECT
       COUNT(*)::int AS count,
-      COALESCE(SUM(byte_size), 0)::bigint::text::numeric AS total_bytes
+      COALESCE(SUM(byte_size), 0)::text AS total_bytes
     FROM artifacts
     WHERE investigation_id = ${investigationId}
   `;
@@ -145,6 +145,7 @@ export async function assertArtifactUploadAllowed(investigationId: string) {
 }
 
 export async function createArtifact(input: {
+  id?: string;
   investigationId: string;
   originalFilename: string;
   mimeType: string;
@@ -155,7 +156,7 @@ export async function createArtifact(input: {
   captureMethod?: string;
 }): Promise<ArtifactRecord> {
   const sql = db();
-  const id = "ART-" + randomUUID();
+  const id = input.id ?? "ART-" + randomUUID();
 
   const [row] = await sql<ArtifactRecord[]>`
     INSERT INTO artifacts (
