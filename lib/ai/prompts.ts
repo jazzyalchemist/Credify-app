@@ -109,6 +109,7 @@ export function screeningPrompt(
   investigation: InvestigationRecord,
   claims: ClaimRecord[],
   sources: SourceRecord[],
+  artifacts: ArtifactRecord[] = [],
 ) {
   return `
 Perform the formal SCREENING stage for this investigation.
@@ -128,6 +129,20 @@ ${sources
       `${source.id}: ${source.title} | ${source.url_or_identifier ?? "no URL"} | ${source.source_type}`,
   )
   .join("\n")}
+
+${artifacts.length ? `
+Attached submitted artifacts:
+${artifacts
+  .map(
+    (artifact) =>
+      `${artifact.id} -> source ${artifact.source_id ?? "not-linked"} | ${artifact.original_filename} | SHA-256 ${artifact.sha256}`,
+  )
+  .join("\n")}
+
+The attached bytes have passed storage-integrity verification only. Use them to judge
+relevance/duplication at SCREENING, but do not treat user submission or a valid hash
+as evidence of credibility, authenticity, or truth.
+` : ""}
 
 Apply the protocol's screening logic only. Decide INCLUDED or EXCLUDED for every
 source ID exactly once.
