@@ -737,10 +737,17 @@ export async function startReconciliation(investigationId: string) {
     throw new Error("A reconciliation job is already active.");
   }
 
-  const claims = await getClaims(investigationId);
-  const challenges = await listChallenges(investigationId);
+  const [claims, challenges, canonicalProtocol, artifactContext] =
+    await Promise.all([
+      getClaims(investigationId),
+      listChallenges(investigationId),
+      loadCanonicalReconciliationProtocol(),
+      loadFrozenArtifactContext(
+        investigationId,
+        investigation.pre_redteam_snapshot,
+      ),
+    ]);
   const model = researchModel();
-  const canonicalProtocol = await loadCanonicalReconciliationProtocol();
 
   const requestPayload = {
     model,
@@ -749,7 +756,15 @@ export async function startReconciliation(investigationId: string) {
       {
         type: "web_search",
         search_context_size: "high",
-},
+      },
+      ...(artifactContext.hasTabularArtifacts
+        ? [
+            {
+              type: "code_interpreter",
+              container: { type: "auto" },
+            },
+          ]
+        : []),
     ],
     tool_choice: "auto",
     include: ["web_search_call.action.sources"],
@@ -757,7 +772,13 @@ export async function startReconciliation(investigationId: string) {
       { role: "system", content: reconciliationSystem(canonicalProtocol) },
       {
         role: "user",
-        content: reconciliationPrompt(investigation, claims, challenges),
+        content: [
+          {
+            type: "input_text",
+            text: reconciliationPrompt(investigation, claims, challenges),
+          },
+          ...artifactContext.contentParts,
+        ],
       },
     ],
     text: {
@@ -786,6 +807,8 @@ export async function startReconciliation(investigationId: string) {
         dossierSha256: investigation.pre_redteam_snapshot_hash,
         challengeIds: challenges.map((challenge) => challenge.id),
         claimIds: claims.map((claim) => claim.id),
+        frozenArtifactHashes: artifactContext.hashes,
+        tabularArtifactsPresent: artifactContext.hasTabularArtifacts,
       },
     });
   } catch (error) {
@@ -822,6 +845,8 @@ export async function startReconciliation(investigationId: string) {
     responseId: response.id,
     challengeCount: challenges.length,
     claimCount: claims.length,
+    frozenArtifactCount: artifactContext.artifacts.length,
+    tabularArtifactsPresent: artifactContext.hasTabularArtifacts,
   });
 
   return job;
