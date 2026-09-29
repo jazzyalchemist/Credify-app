@@ -344,6 +344,10 @@ export async function startRedTeam(investigationId: string) {
 
   const model = researchModel();
   const canonicalProtocol = await loadCanonicalRedTeamProtocol();
+  const artifactContext = await loadFrozenArtifactContext(
+    investigationId,
+    investigation.pre_redteam_snapshot,
+  );
   const started: Array<{ role: string; reviewId: string; jobId: string }> = [];
   const skipped: Array<{ role: string; reason: string }> = [];
   const errors: Array<{ role: string; error: string }> = [];
@@ -373,6 +377,15 @@ export async function startRedTeam(investigationId: string) {
             type: "web_search",
             search_context_size: "high",
           },
+          ...(role.key === "DATA_FIGURE_FORENSICS" &&
+          artifactContext.hasTabularArtifacts
+            ? [
+                {
+                  type: "code_interpreter",
+                  container: { type: "auto" },
+                },
+              ]
+            : []),
         ],
         tool_choice: "required",
         include: ["web_search_call.action.sources"],
@@ -383,11 +396,17 @@ export async function startRedTeam(investigationId: string) {
           },
           {
             role: "user",
-            content: redTeamPrompt(
-              investigation,
-              role.name,
-              investigation.pre_redteam_snapshot,
-            ),
+            content: [
+              {
+                type: "input_text",
+                text: redTeamPrompt(
+                  investigation,
+                  role.name,
+                  investigation.pre_redteam_snapshot,
+                ),
+              },
+              ...artifactContext.contentParts,
+            ],
           },
         ],
         text: {
@@ -414,6 +433,10 @@ export async function startRedTeam(investigationId: string) {
           protocolCommit: investigation.protocol_commit,
           dossierSha256: investigation.pre_redteam_snapshot_hash,
           role: role.key,
+          frozenArtifactHashes: artifactContext.hashes,
+          quantitativeForensicsRequired:
+            role.key === "DATA_FIGURE_FORENSICS" &&
+            artifactContext.hasTabularArtifacts,
         },
         redteamReviewId: review.id,
       });
@@ -437,6 +460,8 @@ export async function startRedTeam(investigationId: string) {
     errors,
     orphanedReviewIds,
     dossierSha256: investigation.pre_redteam_snapshot_hash,
+    frozenArtifactCount: artifactContext.artifacts.length,
+    tabularArtifactsPresent: artifactContext.hasTabularArtifacts,
   });
 
   return { started, skipped, errors, orphanedReviewIds };
