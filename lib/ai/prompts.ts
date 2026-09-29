@@ -225,6 +225,26 @@ historical/cultural/temporal context, and media/digital authenticity.
 
 
 
+
+IDENTITY / AFFILIATION VERIFICATION CONTRACT:
+- Always return identity_affiliation_audit.
+- Separate claimed credentials from credentials you can independently verify.
+- Put degrees, licenses, appointments, certifications, organizational roles, or
+  other expertise claims in verified_credentials only when supported by evidence;
+  otherwise place them in unverified_credentials or unresolved_identity_questions.
+- Verify affiliations independently when material and distinguish current from
+  historical affiliation.
+- Record stable registry identifiers such as ORCID/ROR only when actually supported;
+  do not invent identifiers.
+- For the institution, investigate ownership/governance, mission/orientation,
+  funding relationships, and editorial/research independence where relevant.
+- identity_affiliation_audit evidence_urls must contain only URLs actually returned
+  by web search or the audited source URL.
+- Prestige is not a substitute for expertise, and affiliation or funding is not
+  automatic evidence that a claim is false.
+- Name ambiguity, conflicting biographies, inaccessible credential records, or
+  unclear organizational roles belong in unresolved_identity_questions.
+
 SOURCE-ECOSYSTEM CONTRACT:
 - Always return source_ecosystem_audit and classify the source by its actual role,
   not by whether you agree with it.
