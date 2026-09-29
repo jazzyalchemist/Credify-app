@@ -2080,3 +2080,11 @@ a.citationChip:hover {
   color: var(--danger);
   background: var(--rose-soft);
 }
+
+
+.auditActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
