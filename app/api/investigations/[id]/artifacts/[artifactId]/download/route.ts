@@ -26,7 +26,11 @@ export async function GET(
     });
   }
 
-  return new Response(bytes, {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const body = new Blob([copy.buffer], { type: artifact.mime_type });
+
+  return new Response(body, {
     headers: {
       "Content-Type": artifact.mime_type,
       "Content-Length": String(bytes.byteLength),
