@@ -67,6 +67,15 @@ export async function createBackgroundResponse(
   });
 }
 
+export async function cancelBackgroundResponse(
+  responseId: string,
+): Promise<OpenAIResponse> {
+  return request<OpenAIResponse>(
+    "/responses/" + encodeURIComponent(responseId) + "/cancel",
+    { method: "POST" },
+  );
+}
+
 export async function retrieveResponse(
   responseId: string,
 ): Promise<OpenAIResponse> {
