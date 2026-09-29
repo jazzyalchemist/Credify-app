@@ -930,6 +930,10 @@ export async function freezePreRedTeamDossier(investigationId: string) {
       phase: investigation.current_phase,
       protocolVersion: investigation.protocol_version,
       protocolCommit: investigation.protocol_commit,
+      researchSaturationStatus:
+        investigation.research_saturation_status,
+      researchSaturation:
+        investigation.research_saturation,
     },
     state,
     claims,
