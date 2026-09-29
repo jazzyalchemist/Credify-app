@@ -1,3 +1,4 @@
+import type { ArtifactRecord } from "@/lib/db/artifacts";
 import type {
   ClaimRecord,
   InvestigationRecord,
@@ -152,6 +153,7 @@ export function sourceAuditPrompt(
   investigation: InvestigationRecord,
   source: SourceRecord,
   claims: ClaimRecord[],
+  artifact?: ArtifactRecord | null,
 ) {
   return `
 Conduct the protocol's full ELIGIBILITY / CREDIBILITY audit of ONE included source.
@@ -165,6 +167,21 @@ Title: ${source.title}
 URL/identifier: ${source.url_or_identifier ?? "none"}
 Current type: ${source.source_type}
 Current primary/secondary classification: ${source.primary_or_secondary}
+${artifact ? `
+Attached original artifact:
+Artifact ID: ${artifact.id}
+Filename: ${artifact.original_filename}
+MIME: ${artifact.mime_type}
+Bytes: ${artifact.byte_size}
+Recorded SHA-256: ${artifact.sha256}
+
+The original bytes are attached to this model request only after Credify re-verified
+their SHA-256 and byte size. Inspect the attached object directly. For images/PDFs,
+evaluate visible content and manipulation/context indicators that can actually be
+supported from the file; do not invent EXIF or metadata that was not provided.
+For documents/spreadsheets, distinguish what the file itself establishes from
+external provenance claims.
+` : ""}
 
 Material claims:
 ${claims
