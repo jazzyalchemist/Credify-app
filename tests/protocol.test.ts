@@ -4,6 +4,10 @@ import test from "node:test";
 import { canEnterPhase } from "../lib/protocol/gates";
 import { PROTOCOL } from "../lib/protocol/manifest";
 import {
+  canonicalProtocolManifest,
+  loadCanonicalInitialProtocol,
+} from "../lib/protocol/canonical";
+import {
   CREDIBILITY_DIMENSIONS,
   CREDIBILITY_TOTAL,
 } from "../lib/protocol/scoring";
@@ -107,4 +111,26 @@ test("RedTeam cannot begin before dossier freeze", () => {
     state({ preRedTeamFrozen: false }),
   );
   assert.equal(result.allowed, false);
+});
+
+
+test("bundled canonical protocol verifies without a GitHub token", async () => {
+  const previous = process.env.PROTOCOL_GITHUB_TOKEN;
+  delete process.env.PROTOCOL_GITHUB_TOKEN;
+
+  try {
+    const protocol = await loadCanonicalInitialProtocol();
+    assert.match(protocol, /Adversarial Credibility Verification Engine/i);
+    assert.match(protocol, /Protocol commit:/);
+    assert.equal(
+      canonicalProtocolManifest().bundledFallbackIntegrity,
+      "git-blob-sha1",
+    );
+  } finally {
+    if (previous === undefined) {
+      delete process.env.PROTOCOL_GITHUB_TOKEN;
+    } else {
+      process.env.PROTOCOL_GITHUB_TOKEN = previous;
+    }
+  }
 });
