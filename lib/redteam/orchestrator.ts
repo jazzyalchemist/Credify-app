@@ -121,6 +121,10 @@ type ReconciliationOutput = {
     confidence: number;
     wording: string;
     rationale: string;
+    driving_challenge_ids: string[];
+    surviving_evidence_refs: string[];
+    unresolved_challenge_ids: string[];
+    change_summary: string;
   }>;
 };
 
@@ -724,6 +728,71 @@ export async function processReconciliationResponse(
     }
   }
 
+  const adjudicationByChallengeId = new Map(
+    output.adjudications.map((item) => [item.challenge_id, item]),
+  );
+
+  for (const finalClaim of output.final_claims) {
+    const driving = [...new Set(finalClaim.driving_challenge_ids)];
+    const unresolved = [...new Set(finalClaim.unresolved_challenge_ids)];
+
+    for (const challengeId of [...driving, ...unresolved]) {
+      const challenge = challengeById.get(challengeId);
+      if (!challenge) {
+        throw new Error(
+          "Final claim trace referenced unknown challenge ID: " + challengeId + ".",
+        );
+      }
+      if (challenge.claim_id !== finalClaim.claim_id) {
+        throw new Error(
+          "Final claim trace referenced a challenge belonging to a different claim: " +
+            challengeId +
+            ".",
+        );
+      }
+    }
+
+    for (const challengeId of unresolved) {
+      const adjudication = adjudicationByChallengeId.get(challengeId);
+      if (!adjudication || adjudication.classification !== "UNRESOLVED_CONFLICT") {
+        throw new Error(
+          "Final claim trace marked a challenge unresolved without an UNRESOLVED_CONFLICT adjudication: " +
+            challengeId +
+            ".",
+        );
+      }
+    }
+
+    for (const ref of finalClaim.surviving_evidence_refs) {
+      const normalized = /^https?:\/\//i.test(ref) ? normalizeUrl(ref) : ref;
+      if (!trustedEvidenceRefs.has(normalized)) {
+        invalidEvidenceRefs.push(ref);
+      }
+    }
+
+    const firstPass = claimById.get(finalClaim.claim_id);
+    if (!firstPass) {
+      throw new Error("Final claim trace refers to an unknown claim.");
+    }
+
+    const wordingChanged = finalClaim.wording.trim() !== firstPass.text.trim();
+    const confidenceChanged =
+      firstPass.first_pass_confidence !== null &&
+      Math.abs(
+        finalClaim.confidence - Number(firstPass.first_pass_confidence),
+      ) > 0.001;
+
+    if (
+      (finalClaim.status !== "UPHELD" || wordingChanged || confidenceChanged) &&
+      driving.length === 0 &&
+      finalClaim.surviving_evidence_refs.length === 0
+    ) {
+      throw new Error(
+        "A modified final claim must identify a driving challenge or surviving evidence reference.",
+      );
+    }
+  }
+
   if (invalidEvidenceRefs.length > 0) {
     throw new Error(
       "Reconciliation referenced evidence that is not in the frozen dossier, " +
@@ -786,6 +855,16 @@ export async function processReconciliationResponse(
       confidence: finalClaim.confidence,
       wording: finalClaim.wording,
       rationale: finalClaim.rationale,
+      evidenceTrace: {
+        drivingChallengeIds: [...new Set(finalClaim.driving_challenge_ids)],
+        survivingEvidenceRefs: [
+          ...new Set(finalClaim.surviving_evidence_refs),
+        ],
+        unresolvedChallengeIds: [
+          ...new Set(finalClaim.unresolved_challenge_ids),
+        ],
+        changeSummary: finalClaim.change_summary,
+      },
     });
   }
 
