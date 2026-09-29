@@ -189,6 +189,12 @@ Filename: ${artifact.original_filename}
 MIME: ${artifact.mime_type}
 Bytes: ${artifact.byte_size}
 Recorded SHA-256: ${artifact.sha256}
+Server-extracted metadata snapshot:
+${JSON.stringify(artifact.metadata ?? {}, null, 2)}
+
+The metadata snapshot above was parsed server-side from the stored artifact bytes
+where supported. Treat it as evidence, not proof: metadata may be absent, stripped,
+edited, copied, or forged. Distinguish parser status from actual metadata values.
 
 The original bytes are attached to this model request only after Credify re-verified
 their SHA-256 and byte size. Inspect the attached object directly. For images/PDFs,
