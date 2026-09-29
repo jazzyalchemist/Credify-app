@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { AIResearchPanel } from "@/components/AIResearchPanel";
+import { ArtifactPanel } from "@/components/ArtifactPanel";
 import { AddClaimForm } from "@/components/AddClaimForm";
 import { AddSourceForm } from "@/components/AddSourceForm";
 import { ClaimAuditEditor } from "@/components/ClaimAuditEditor";
@@ -12,6 +13,7 @@ import { SourceAuditEditor } from "@/components/SourceAuditEditor";
 import { WorkspaceControls } from "@/components/WorkspaceControls";
 import { databaseConfigured } from "@/lib/db/client";
 import { listAiJobs } from "@/lib/db/ai-jobs";
+import { listArtifacts } from "@/lib/db/artifacts";
 import {
   listChallenges,
   listReconciliations,
@@ -77,6 +79,7 @@ export default async function InvestigationPage({
     redTeamReviews,
     challenges,
     reconciliations,
+    artifacts,
   ] = await Promise.all([
     getClaims(id),
     getSources(id),
@@ -85,6 +88,7 @@ export default async function InvestigationPage({
     listRedTeamReviews(id),
     listChallenges(id),
     listReconciliations(id),
+    listArtifacts(id),
   ]);
 
   const currentIndex = PHASES.indexOf(investigation.current_phase);
@@ -213,6 +217,13 @@ export default async function InvestigationPage({
             </div>
             <pre>{investigation.input_material}</pre>
           </section>
+
+          <ArtifactPanel
+            investigationId={id}
+            currentPhase={investigation.current_phase}
+            frozen={frozen}
+            artifacts={artifacts}
+          />
 
           <section className="panel">
             <div className="panelHeading">
