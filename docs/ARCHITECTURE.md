@@ -59,7 +59,35 @@ External research runtime
   └── Responses web_search tool
 ```
 
-File/object-storage ingestion is **not** implemented in v0.1 and must not be implied by the application or schema.
+## Artifact evidence layer
+
+Credify supports first-class uploaded evidence in v0.1.
+
+Supported investigation artifacts include PDF, PNG/JPEG/WebP/non-animated GIF,
+text/Markdown/HTML/XML/JSON, CSV/TSV, Word/RTF, Excel, and PowerPoint.
+
+Artifact flow:
+
+1. client/server size and count limits are enforced;
+2. known filename extensions determine the canonical stored MIME type;
+3. formats with reliable magic bytes receive a binary signature sanity check;
+4. SHA-256 is computed before persistence;
+5. identical bytes within an investigation deduplicate by hash;
+6. raw bytes are stored in Netlify Blobs;
+7. the artifact row stores storage provenance, byte size, SHA-256, capture method,
+   and bounded extracted metadata;
+8. during IDENTIFICATION/SCREENING, the artifact receives a source-ledger identity;
+9. model access reloads the stored bytes and re-verifies SHA-256 + byte size before
+   attaching them to a Responses request;
+10. artifact provenance is included in the canonical frozen dossier.
+
+Image metadata is extracted server-side with the pinned `exifr` dependency for
+supported JPEG/PNG inputs. Metadata is evidence, not proof: it can be missing,
+stripped, edited, copied, or forged.
+
+Tabular CSV/TSV/XLS/XLSX source audits receive a sandboxed Code Interpreter tool.
+Credify requires a real `code_interpreter_call` before accepting quantitative
+recalculation claims and separately requires web search for external provenance.
 
 ## Canonical methodology boundary
 
@@ -158,6 +186,7 @@ The frozen payload includes:
 - raw source/claim credibility assessments;
 - search logs;
 - retrieval logs;
+- uploaded artifact provenance and metadata snapshots;
 - Page-1 AI job ledger;
 - pre-freeze audit chronology;
 - exact pre-RedTeam report and its own SHA-256.
