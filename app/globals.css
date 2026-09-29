@@ -2438,3 +2438,62 @@ a.citationChip:hover {
     grid-template-columns: 1fr;
   }
 }
+
+
+.finalEvidenceTrace {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.finalEvidenceTrace summary {
+  cursor: pointer;
+  color: var(--accent-deep);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.finalEvidenceTrace > p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.finalTraceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.finalTraceGrid > div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.66);
+}
+
+.finalTraceGrid strong,
+.finalTraceGrid span {
+  display: block;
+  font-size: 9px;
+}
+
+.finalTraceGrid ul {
+  margin: 6px 0 0;
+  padding-left: 15px;
+  font-size: 9px;
+}
+
+.finalTraceGrid a,
+.finalTraceGrid code {
+  overflow-wrap: anywhere;
+  font-size: 9px;
+}
+
+@media (max-width: 720px) {
+  .finalTraceGrid {
+    grid-template-columns: 1fr;
+  }
+}
