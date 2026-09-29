@@ -346,9 +346,16 @@ export function synthesisPrompt(input: {
   sources: SourceRecord[];
   sourceAssessments: unknown[];
   claimSourceEdges: unknown[];
+  evidenceChains: unknown[];
 }) {
-  const { investigation, claims, sources, sourceAssessments, claimSourceEdges } =
-    input;
+  const {
+    investigation,
+    claims,
+    sources,
+    sourceAssessments,
+    claimSourceEdges,
+    evidenceChains,
+  } = input;
 
   return `
 Perform the Page-1 ANALYSIS / SYNTHESIS stage using ONLY the audited evidence
@@ -388,6 +395,15 @@ ${JSON.stringify(sourceAssessments)}
 
 Claim-source evidence edges:
 ${JSON.stringify(claimSourceEdges)}
+
+Evidence dependency / independence chains:
+${JSON.stringify(evidenceChains)}
+
+The dependency graph is authoritative for known shared-origin/dependency signals.
+Do not count multiple downstream sources as independent corroboration merely because
+they are distinct URLs. Shared author, institution, or funder is a dependency signal
+to weigh in context, not automatic invalidation. Shared information origin,
+wire/release, or underlying dataset can materially reduce independent corroboration.
 
 For EVERY claim ID exactly once:
 - identify supporting evidence and strongest counterevidence by exact source ID;
