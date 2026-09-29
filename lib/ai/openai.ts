@@ -20,7 +20,7 @@ function apiKey() {
 }
 
 export function researchModel() {
-  return process.env.OPENAI_RESEARCH_MODEL || "gpt-5.5";
+  return process.env.OPENAI_RESEARCH_MODEL || "gpt-5.6-sol";
 }
 
 export function shouldStoreResponses() {
