@@ -1177,6 +1177,50 @@ export async function processSourceAuditResponse(
     );
   }
 
+  const evidenceCaptureProvenance = artifact
+    ? {
+        captureType: "HASHED_ARTIFACT" as const,
+        rawBytesCaptured: true,
+        artifactId: artifact.id,
+        sha256: artifact.sha256,
+        byteSize: Number(artifact.byte_size),
+        storageProvider: artifact.storage_provider,
+        captureMethod: artifact.capture_method,
+        observedUrl: source.url_or_identifier,
+        webSearchReturnedSubmittedUrl: false,
+        limitation:
+          "Credify preserved and re-verified the uploaded artifact bytes; this proves artifact identity/integrity, not factual truth.",
+      }
+    : /^https?:\/\//i.test(source.url_or_identifier ?? "")
+      ? {
+          captureType: "WEB_SEARCH_TOOL_REFERENCE" as const,
+          rawBytesCaptured: false,
+          artifactId: null,
+          sha256: null,
+          byteSize: null,
+          storageProvider: null,
+          captureMethod: "OPENAI_RESPONSES_WEB_SEARCH",
+          observedUrl: source.url_or_identifier,
+          webSearchReturnedSubmittedUrl: trustedUrls.has(
+            normalizeUrl(source.url_or_identifier ?? ""),
+          ),
+          limitation:
+            "Credify preserved the URL, search/query provenance, and audit findings but did not capture raw webpage bytes. The live page may change after the investigation; historical-version claims require independent archive/version evidence.",
+        }
+      : {
+          captureType: "LEDGER_REFERENCE_ONLY" as const,
+          rawBytesCaptured: false,
+          artifactId: null,
+          sha256: null,
+          byteSize: null,
+          storageProvider: null,
+          captureMethod: "SOURCE_LEDGER",
+          observedUrl: source.url_or_identifier,
+          webSearchReturnedSubmittedUrl: false,
+          limitation:
+            "No raw artifact bytes or web-page byte snapshot were captured for this source identifier.",
+        };
+
   const scholarlyDoiCandidate = [
     source.url_or_identifier,
     origin || null,
@@ -1275,6 +1319,7 @@ export async function processSourceAuditResponse(
         reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
       },
       scholarlyRegistryVerification,
+      evidenceCaptureProvenance,
     },
     evidenceRefs: [...new Set(declaredEvidenceUrls)],
   });
@@ -1326,6 +1371,7 @@ export async function processSourceAuditResponse(
       reverseImageCapability: "NOT_AVAILABLE_IN_CURRENT_TOOLING",
     },
     scholarlyRegistryVerification,
+    evidenceCaptureProvenance,
     identityAffiliationAudit: output.identity_affiliation_audit,
     sourceEcosystemAudit: output.source_ecosystem_audit,
     quantitativeToolVerification: {
