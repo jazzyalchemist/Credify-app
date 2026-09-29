@@ -95,3 +95,26 @@ A review deployment should originate from that tested artifact or the exact same
 Before RedTeam begins, Credify freezes a versioned canonical dossier and records its SHA-256.
 
 The authenticated audit view can download that dossier. The download endpoint recomputes the canonical SHA-256 and refuses to serve the file if the stored snapshot no longer matches the recorded hash.
+
+
+## Artifact storage and AI processing
+
+Uploaded evidence is stored in Netlify Blobs; PostgreSQL stores the artifact identity
+and provenance row, including SHA-256, byte size, storage key, canonical MIME type,
+capture method, source linkage, and bounded extracted metadata.
+
+Credify does not treat a successful hash/signature/metadata parse as proof that the
+content is authentic.
+
+When AI research analyzes an uploaded artifact, Credify reloads the raw bytes,
+re-verifies SHA-256 and byte size, and sends the verified artifact plus relevant
+metadata/context to the configured OpenAI Responses API. Operators should therefore
+treat artifact uploads as material that will be disclosed to that configured AI
+provider during research stages.
+
+Image metadata can contain device identifiers, timestamps, software information, or
+GPS/location fields. Credify preserves supported metadata for forensic use rather
+than silently stripping it.
+
+Tabular CSV/TSV/XLS/XLSX audits may invoke a sandboxed Code Interpreter container
+for deterministic recalculation in addition to the independent web-search step.
