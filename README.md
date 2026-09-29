@@ -18,10 +18,15 @@ Implemented end-to-end:
 
 - investigation intake and claim decomposition;
 - live evidence discovery with search provenance;
+- file-first intake with hashed Blob-backed artifacts;
+- binary-signature sanity checks and verified artifact downloads;
+- server-side image metadata extraction;
 - source screening and retrieval/provenance state;
 - information-origin and evidence-chain mapping;
 - 12-dimension / 100-point credibility matrix;
 - source-by-source audit and claim-level first-pass synthesis;
+- structured media forensics with explicit reverse-image-tooling limits;
+- sandboxed Python recomputation for CSV/TSV/XLS/XLSX evidence;
 - versioned pre-RedTeam report;
 - canonical frozen Page-1 dossier with SHA-256;
 - eight-role independent rival RedTeam;
