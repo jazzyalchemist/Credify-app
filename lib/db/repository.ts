@@ -350,6 +350,7 @@ export async function updateSource(
     correctionRetractionStatus?: string | null;
     fundingConflicts?: string | null;
     informationOriginId?: string | null;
+    informationOriginStatus?: string;
     credibilityScore?: number | null;
     includedInSynthesis?: boolean;
   },
@@ -374,6 +375,7 @@ export async function updateSource(
     "correctionRetractionStatus",
     "fundingConflicts",
     "informationOriginId",
+    "informationOriginStatus",
     "credibilityScore",
   ]);
   const allowed =
@@ -427,6 +429,9 @@ export async function updateSource(
       input.informationOriginId === undefined
         ? current[0].information_origin_id
         : input.informationOriginId,
+    informationOriginStatus:
+      input.informationOriginStatus ??
+      current[0].information_origin_status,
     credibilityScore:
       input.credibilityScore === undefined
         ? current[0].credibility_score
@@ -449,6 +454,7 @@ export async function updateSource(
       correction_retraction_status = ${next.correctionRetractionStatus},
       funding_conflicts = ${next.fundingConflicts},
       information_origin_id = ${next.informationOriginId},
+      information_origin_status = ${next.informationOriginStatus},
       credibility_score = ${next.credibilityScore},
       included_in_synthesis = ${next.includedInSynthesis},
       updated_at = NOW()
@@ -513,7 +519,7 @@ export async function buildInvestigationState(
       COUNT(*) FILTER (
         WHERE screening_decision = 'INCLUDED'
           AND included_in_synthesis
-          AND information_origin_id IS NULL
+          AND information_origin_status = 'UNASSESSED'
       )::int AS origin_unassessed
     FROM sources
     WHERE investigation_id = ${investigationId}
