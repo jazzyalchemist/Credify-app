@@ -19,6 +19,7 @@ import {
 import {
   listCredibilityAssessments,
   upsertCredibilityAssessment,
+  validateAndTotalDimensionScores,
   type DimensionScores,
 } from "@/lib/db/credibility";
 import {
@@ -54,6 +55,7 @@ import {
   listArtifacts,
 } from "@/lib/db/artifacts";
 import { loadVerifiedArtifactInputPart } from "@/lib/artifacts/verified";
+import { validateFirstPassConfidence } from "@/lib/protocol/confidence";
 import {
   artifactMediaApplicability,
   artifactMetadataStatus,
@@ -1388,6 +1390,22 @@ export async function processSynthesisResponse(
     const primaryRecovered = supportingSources.some(
       (source) => source?.primary_or_secondary === "PRIMARY",
     );
+
+    const claimMatrixScore = validateAndTotalDimensionScores(
+      claimOutput.dimension_scores,
+    );
+
+    validateFirstPassConfidence({
+      status: claimOutput.first_pass_status,
+      confidence: claimOutput.confidence,
+      requiresPrimaryEvidence: claim.requires_primary_evidence,
+      primaryEvidenceRecovered: primaryRecovered,
+      unresolvedMaterialConflict:
+        claimOutput.unresolved_material_conflict,
+      criticalFailure: claimOutput.critical_failure,
+      temporalAlignment: claimOutput.temporal_alignment.alignment,
+      credibilityMatrixScore: claimMatrixScore,
+    });
 
     const assessment = await upsertCredibilityAssessment({
       investigationId: job.investigation_id,
