@@ -23,6 +23,7 @@ export function AppShell({
           <Link href="/investigations">Investigations</Link>
           <Link href="/investigations/new">New investigation</Link>
           <Link href="/investigations/demo">Demo workspace</Link>
+          <Link href="/status">Status</Link>
           <a
             href="https://github.com/jazzyalchemist/credibility-verification-engine"
             target="_blank"
