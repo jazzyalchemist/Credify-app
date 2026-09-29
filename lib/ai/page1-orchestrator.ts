@@ -227,6 +227,87 @@ function sourceUrlIdentity(value: string | null) {
   }
 }
 
+function canonicalDependencyKey(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return normalizeUrl(trimmed).toLowerCase();
+  return trimmed.replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeDependencyFingerprint(
+  fingerprint: SourceAuditOutput["independence_fingerprint"],
+  trustedUrls: Set<string>,
+) {
+  function normalizeEntry(
+    entry: DependencyEvidence,
+    label: string,
+    allowEmpty = false,
+  ) {
+    const key = canonicalDependencyKey(entry.key);
+
+    if (!key) {
+      if (!allowEmpty || entry.evidence_urls.length > 0) {
+        if (!allowEmpty) {
+          throw new Error(label + " dependency key was empty.");
+        }
+        if (entry.evidence_urls.length > 0) {
+          throw new Error(
+            label + " dependency supplied evidence URLs without a dependency key.",
+          );
+        }
+      }
+      return { key: "", evidence_urls: [] as string[] };
+    }
+
+    if (entry.evidence_urls.length < 1) {
+      throw new Error(
+        label + " dependency requires at least one supporting evidence URL.",
+      );
+    }
+
+    const normalizedUrls = [...new Set(entry.evidence_urls.map(normalizeUrl))];
+    const invalid = normalizedUrls.filter((url) => !trustedUrls.has(url));
+    if (invalid.length > 0) {
+      throw new Error(
+        label +
+          " dependency referenced URLs not returned by web search or the audited source: " +
+          invalid.join(", "),
+      );
+    }
+
+    return { key, evidence_urls: normalizedUrls };
+  }
+
+  function normalizeList(entries: DependencyEvidence[], label: string) {
+    const byKey = new Map<string, { key: string; evidence_urls: string[] }>();
+    for (const entry of entries) {
+      const normalized = normalizeEntry(entry, label);
+      const existing = byKey.get(normalized.key);
+      if (existing) {
+        existing.evidence_urls = [
+          ...new Set([...existing.evidence_urls, ...normalized.evidence_urls]),
+        ];
+      } else {
+        byKey.set(normalized.key, normalized);
+      }
+    }
+    return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }
+
+  return {
+    wire_or_release: normalizeEntry(
+      fingerprint.wire_or_release,
+      "wire/release",
+      true,
+    ),
+    datasets: normalizeList(fingerprint.datasets, "dataset"),
+    authors: normalizeList(fingerprint.authors, "author"),
+    institutions: normalizeList(fingerprint.institutions, "institution"),
+    funders: normalizeList(fingerprint.funders, "funder"),
+    notes: fingerprint.notes.map((note) => note.trim()).filter(Boolean),
+  };
+}
+
 function assertExactCoverage(
   expectedIds: string[],
   receivedIds: string[],
@@ -844,6 +925,12 @@ export async function processSourceAuditResponse(
     trustedUrls.add(normalizeUrl(source.url_or_identifier));
   }
 
+  const validatedIndependenceFingerprint =
+    normalizeDependencyFingerprint(
+      output.independence_fingerprint,
+      trustedUrls,
+    );
+
   const rejectedEvidenceUrls = output.evidence_urls.filter(
     (url) => !trustedUrls.has(normalizeUrl(url)),
   );
@@ -872,6 +959,7 @@ export async function processSourceAuditResponse(
       overall: output.overall_rationale,
       authorExpertise: output.author_expertise_summary,
       institutionalAnalysis: output.institutional_analysis,
+      independenceFingerprint: validatedIndependenceFingerprint,
       methodology: output.methodology_summary,
       citationIntegrity: output.citation_integrity_summary,
       dataIntegrity: output.data_integrity_summary,
@@ -910,6 +998,7 @@ export async function processSourceAuditResponse(
     fundingConflicts: output.funding_conflicts,
     informationOriginId: origin ? normalizeUrl(origin) : null,
     informationOriginStatus: output.information_origin_status,
+    independenceFingerprint: validatedIndependenceFingerprint,
     credibilityScore: Number(assessment.total_score),
   });
 
@@ -932,6 +1021,7 @@ export async function processSourceAuditResponse(
     provenanceStatus: output.provenance_status,
     informationOriginId: origin ? normalizeUrl(origin) : null,
     informationOriginStatus: output.information_origin_status,
+    independenceFingerprint: validatedIndependenceFingerprint,
     evidenceUrls: output.evidence_urls,
     webQueries: queries,
     quantitativeForensics: output.quantitative_forensics,
