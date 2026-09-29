@@ -90,6 +90,9 @@ export const updateSourceSchema = z
       ])
       .optional(),
     informationOriginId: z.string().trim().max(500).nullable().optional(),
+    informationOriginStatus: z
+      .enum(["UNASSESSED", "VERIFIED", "UNRESOLVED"])
+      .optional(),
     credibilityScore: z.number().min(0).max(100).nullable().optional(),
     includedInSynthesis: z.boolean().optional(),
   })
