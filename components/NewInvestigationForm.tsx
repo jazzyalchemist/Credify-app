@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 const MAX_INITIAL_FILES = 8;
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_TOTAL_INITIAL_BYTES = 16 * 1024 * 1024;
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return bytes + " B";
@@ -42,6 +43,19 @@ export function NewInvestigationForm() {
       setError(
         "Each initial artifact must be between 1 byte and 4 MB. Check: " +
           oversized.map((file) => file.name).join(", "),
+      );
+      return;
+    }
+
+    const totalBytes = nextFiles.reduce(
+      (sum, file) => sum + file.size,
+      0,
+    );
+    if (totalBytes > MAX_TOTAL_INITIAL_BYTES) {
+      setError(
+        "Initial artifacts may total at most 16 MB. Current selection: " +
+          formatBytes(totalBytes) +
+          ".",
       );
       return;
     }
