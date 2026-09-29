@@ -7,7 +7,6 @@ import {
   updateSource,
 } from "@/lib/db/repository";
 import {
-  createAiJob,
   listAiJobs,
   type AiJobRecord,
 } from "@/lib/db/ai-jobs";
@@ -41,6 +40,7 @@ import {
   SYNTHESIS_SCHEMA,
 } from "./schemas";
 import { loadCanonicalInitialProtocol } from "@/lib/protocol/canonical";
+import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
 
 type ScreeningOutput = {
   decisions: Array<{
@@ -223,11 +223,11 @@ export async function startScreening(investigationId: string) {
   };
 
   const response = await createBackgroundResponse(requestPayload);
-  const job = await createAiJob({
+  const job = await persistBackgroundJobOrCancel({
     investigationId,
     jobType: "SCREENING",
-    externalResponseId: response.id,
-    model: response.model || model,
+    response,
+    fallbackModel: model,
     status: mapExternalStatus(response.status),
     requestPayload: {
       purpose: "source_screening",
@@ -352,11 +352,11 @@ export async function startSourceAudits(
       };
 
       const response = await createBackgroundResponse(requestPayload);
-      const job = await createAiJob({
+      const job = await persistBackgroundJobOrCancel({
         investigationId,
         jobType: "SOURCE_AUDIT",
-        externalResponseId: response.id,
-        model: response.model || model,
+        response,
+        fallbackModel: model,
         status: mapExternalStatus(response.status),
         requestPayload: {
           purpose: "source_credibility_audit",
@@ -466,11 +466,11 @@ export async function startSynthesis(investigationId: string) {
   };
 
   const response = await createBackgroundResponse(requestPayload);
-  const job = await createAiJob({
+  const job = await persistBackgroundJobOrCancel({
     investigationId,
     jobType: "SYNTHESIS",
-    externalResponseId: response.id,
-    model: response.model || model,
+    response,
+    fallbackModel: model,
     status: mapExternalStatus(response.status),
     requestPayload: {
       purpose: "first_pass_claim_synthesis",
