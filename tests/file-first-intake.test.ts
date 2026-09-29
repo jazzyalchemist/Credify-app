@@ -25,6 +25,8 @@ test("initial files use the canonical artifact upload endpoint", () => {
 test("file-first intake keeps server artifact limits visible client-side", () => {
   assert.match(form, /MAX_INITIAL_FILES = 8/);
   assert.match(form, /MAX_FILE_BYTES = 4 \* 1024 \* 1024/);
+  assert.match(form, /MAX_TOTAL_INITIAL_BYTES = 16 \* 1024 \* 1024/);
+  assert.match(form, /totalBytes > MAX_TOTAL_INITIAL_BYTES/);
   assert.match(form, /multiple/);
 });
 
