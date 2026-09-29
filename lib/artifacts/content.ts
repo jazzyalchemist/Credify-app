@@ -167,3 +167,14 @@ export function buildArtifactInputPart(
       : {}),
   };
 }
+
+
+export function artifactNeedsQuantitativeForensics(mimeType: string) {
+  return [
+    "text/csv",
+    "application/csv",
+    "text/tab-separated-values",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+  ].includes(mimeType);
+}
