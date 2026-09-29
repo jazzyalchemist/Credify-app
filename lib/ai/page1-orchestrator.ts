@@ -186,6 +186,34 @@ function normalizeUrl(value: string) {
   }
 }
 
+function sourceUrlIdentity(value: string | null) {
+  if (!value || !/^https?:\/\//i.test(value)) return null;
+
+  try {
+    const parsed = new URL(value);
+    parsed.hash = "";
+    if (parsed.pathname !== "/") {
+      parsed.pathname = parsed.pathname.replace(/\/$/, "");
+    }
+
+    return {
+      submittedUrl: value,
+      normalizedUrl: parsed.toString(),
+      hostname: parsed.hostname.toLowerCase(),
+      protocol: parsed.protocol.toLowerCase(),
+      parseError: null as string | null,
+    };
+  } catch {
+    return {
+      submittedUrl: value,
+      normalizedUrl: null,
+      hostname: null,
+      protocol: null,
+      parseError: "Submitted HTTP(S) identifier could not be parsed as a URL.",
+    };
+  }
+}
+
 function assertExactCoverage(
   expectedIds: string[],
   receivedIds: string[],
@@ -694,6 +722,19 @@ export async function processSourceAuditResponse(
     artifact && artifactNeedsQuantitativeForensics(artifact.mime_type),
   );
   const codeInterpreterUsage = extractCodeInterpreterUsage(response);
+  const urlIdentity = sourceUrlIdentity(source.url_or_identifier);
+
+  if (urlIdentity && output.url_forensics.applicability !== "URL_SOURCE") {
+    throw new Error(
+      "HTTP(S) source audit did not return URL_SOURCE URL forensics.",
+    );
+  }
+
+  if (!urlIdentity && output.url_forensics.applicability !== "NOT_APPLICABLE") {
+    throw new Error(
+      "Non-URL source audit incorrectly claimed URL-source applicability.",
+    );
+  }
 
   if (!hasWebSearchCall(response)) {
     throw new Error(
@@ -832,6 +873,8 @@ export async function processSourceAuditResponse(
         calls: codeInterpreterUsage.calls,
       },
       context: output.historical_cultural_temporal_context,
+      urlForensics: output.url_forensics,
+      urlIdentityVerification: urlIdentity,
       mediaAuthenticity: output.media_digital_authenticity_summary,
       mediaForensics: output.media_forensics,
       mediaVerification: {
