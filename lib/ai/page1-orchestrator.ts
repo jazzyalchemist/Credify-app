@@ -250,6 +250,20 @@ type SourceAuditOutput = {
       | "NOT_AVAILABLE_IN_CURRENT_TOOLING"
       | "TEXTUAL_CORROBORATION_ONLY";
     reverse_image_search_finding: string;
+    visual_statistical_forensics: {
+      applicability:
+        | "NOT_APPLICABLE"
+        | "CHART_OR_FIGURE_PRESENT"
+        | "VISUAL_DATA_PRESENT_UNREADABLE";
+      axis_scale_findings: string[];
+      denominator_baseline_findings: string[];
+      time_window_category_selection_findings: string[];
+      annotation_label_findings: string[];
+      visual_distortion_findings: string[];
+      underlying_data_recovered: boolean;
+      underlying_data_source: string;
+      unresolved_visual_data_questions: string[];
+    };
     unresolved_media_questions: string[];
   };
   critical_failures: string[];
