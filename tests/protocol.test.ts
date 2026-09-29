@@ -120,7 +120,7 @@ test("bundled canonical protocol verifies without a GitHub token", async () => {
 
   try {
     const protocol = await loadCanonicalInitialProtocol();
-    assert.match(protocol, /Adversarial Credibility Verification Engine/i);
+    assert.match(protocol, /ADVERSARIAL OSINT \+ ACADEMIC CREDIBILITY VERIFICATION ENGINE/i);
     assert.match(protocol, /Protocol commit:/);
     assert.equal(
       canonicalProtocolManifest().bundledFallbackIntegrity,
