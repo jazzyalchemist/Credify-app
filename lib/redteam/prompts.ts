@@ -199,6 +199,15 @@ Requirements:
   or URLs actually returned by your own web search.
 - Revised confidence must reflect surviving evidence and unresolved uncertainty,
   not reviewer vote totals.
+- final_claims[].confidence is confidence in the FINAL REVISED WORDING, not
+  confidence that the original Page-1 wording was true. A DISPROVEN original claim
+  may therefore have high confidence when the final wording accurately states the
+  supported contrary conclusion.
+- UNCERTAIN final wording cannot exceed 60%. Any unresolved challenge or final
+  critical evidentiary failure caps confidence at 75%.
+- Confidence above 99.999% is extraordinary and requires no unresolved challenges,
+  no final critical evidentiary failures, and exceptionally strong final matrix
+  integrity. Never use extreme precision to satisfy an accuracy target.
 - Return investigation_dimension_scores, investigation_critical_failures, and
   investigation_rationale for the final evidentiary system AFTER adjudication.
 - The final investigation matrix is not an average of reviewers, sources, claim
