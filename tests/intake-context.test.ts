@@ -10,7 +10,7 @@ const orchestratorPath = path.join(
   "orchestrator.ts",
 );
 
-test("claim decomposition can recover URL context with web search", () => {
+test("URL-bearing claim decomposition requires context recovery with web search", () => {
   const source = fs.readFileSync(orchestratorPath, "utf8");
   const start = source.indexOf("export async function startDecomposition");
   const end = source.indexOf("export async function startDiscovery");
@@ -19,7 +19,9 @@ test("claim decomposition can recover URL context with web search", () => {
   const block = source.slice(start, end);
   assert.match(block, /type:\s*"web_search"/);
   assert.match(block, /search_context_size:\s*"high"/);
-  assert.match(block, /tool_choice:\s*"auto"/);
+  assert.match(block, /inputContainsUrl\(investigation\.input_material\)/);
+  assert.match(block, /\? "required"/);
+  assert.match(block, /: "auto"/);
   assert.match(block, /web_search_call\.action\.sources/);
 });
 
