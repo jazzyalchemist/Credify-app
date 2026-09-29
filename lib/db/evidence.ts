@@ -124,22 +124,8 @@ export async function rebuildEvidenceChains(investigationId: string) {
       AND screening_decision = 'INCLUDED'
       AND included_in_synthesis
       AND information_origin_status <> 'UNASSESSED'
-    ORDER BY created_at ASC
+    ORDER BY created_at ASC, id ASC
   `;
-
-  const groups = new Map<string, SourceRecord[]>();
-
-  for (const source of sources) {
-    const key =
-      source.information_origin_status === "VERIFIED" &&
-      source.information_origin_id
-        ? "VERIFIED:" + source.information_origin_id
-        : "UNRESOLVED:" + source.id;
-
-    const group = groups.get(key) ?? [];
-    group.push(source);
-    groups.set(key, group);
-  }
 
   await sql`
     DELETE FROM evidence_chains
@@ -151,9 +137,80 @@ export async function rebuildEvidenceChains(investigationId: string) {
     assessment: string;
     sourceIds: string[];
     origin: string | null;
+    dependencyType: string | null;
+    dependencyKey: string | null;
   }> = [];
 
-  for (const [key, members] of groups) {
+  async function insertChain(input: {
+    assessment: string;
+    members: SourceRecord[];
+    origin?: string | null;
+    originSourceId?: string | null;
+    dependencyType?: string | null;
+    dependencyKey?: string | null;
+    sharedWireOrRelease?: boolean;
+    sharedDataset?: boolean;
+    sharedAuthor?: boolean;
+    sharedInstitution?: boolean;
+    sharedFunder?: boolean;
+    note: string;
+  }) {
+    const id = "CHAIN-" + randomUUID();
+    const sourceIds = input.members.map((source) => source.id).sort();
+
+    await sql`
+      INSERT INTO evidence_chains (
+        id,
+        investigation_id,
+        origin_source_id,
+        independence_assessment,
+        shared_wire_or_release,
+        shared_dataset,
+        shared_author,
+        shared_institution,
+        shared_funder,
+        downstream_source_ids,
+        notes
+      )
+      VALUES (
+        ${id},
+        ${investigationId},
+        ${input.originSourceId ?? null},
+        ${input.assessment},
+        ${input.sharedWireOrRelease ?? false},
+        ${input.sharedDataset ?? false},
+        ${input.sharedAuthor ?? false},
+        ${input.sharedInstitution ?? false},
+        ${input.sharedFunder ?? false},
+        ${sql.json(sourceIds as never)},
+        ${input.note}
+      )
+    `;
+
+    created.push({
+      id,
+      assessment: input.assessment,
+      sourceIds,
+      origin: input.origin ?? null,
+      dependencyType: input.dependencyType ?? null,
+      dependencyKey: input.dependencyKey ?? null,
+    });
+  }
+
+  const originGroups = new Map<string, SourceRecord[]>();
+  for (const source of sources) {
+    const key =
+      source.information_origin_status === "VERIFIED" &&
+      source.information_origin_id
+        ? "VERIFIED:" + source.information_origin_id
+        : "UNRESOLVED:" + source.id;
+
+    const group = originGroups.get(key) ?? [];
+    group.push(source);
+    originGroups.set(key, group);
+  }
+
+  for (const [key, members] of originGroups) {
     const verified = key.startsWith("VERIFIED:");
     const origin = verified ? key.slice("VERIFIED:".length) : null;
     const originSource =
@@ -161,41 +218,102 @@ export async function rebuildEvidenceChains(investigationId: string) {
         ? members.find((source) => source.url_or_identifier === origin) ?? null
         : null;
 
-    const assessment = !verified
-      ? "UNRESOLVED_ORIGIN"
-      : members.length > 1
-        ? "SHARED_INFORMATION_ORIGIN"
-        : "DISTINCT_INFORMATION_ORIGIN";
-
-    const id = "CHAIN-" + randomUUID();
-    await sql`
-      INSERT INTO evidence_chains (
-        id,
-        investigation_id,
-        origin_source_id,
-        independence_assessment,
-        downstream_source_ids,
-        notes
-      )
-      VALUES (
-        ${id},
-        ${investigationId},
-        ${originSource?.id ?? null},
-        ${assessment},
-        ${sql.json(members.map((source) => source.id) as never)},
-        ${
-          origin
-            ? "Verified information origin: " + origin
-            : "Information origin remained unresolved after audit."
-        }
-      )
-    `;
-
-    created.push({
-      id,
-      assessment,
-      sourceIds: members.map((source) => source.id),
+    await insertChain({
+      assessment: !verified
+        ? "UNRESOLVED_ORIGIN"
+        : members.length > 1
+          ? "SHARED_INFORMATION_ORIGIN"
+          : "DISTINCT_INFORMATION_ORIGIN",
+      members,
       origin,
+      originSourceId: originSource?.id ?? null,
+      note: origin
+        ? "Verified information origin: " + origin
+        : "Information origin remained unresolved after audit.",
+    });
+  }
+
+  type DependencyType =
+    | "WIRE_OR_RELEASE"
+    | "DATASET"
+    | "AUTHOR"
+    | "INSTITUTION"
+    | "FUNDER";
+
+  const dependencyGroups = new Map<
+    string,
+    { type: DependencyType; key: string; members: Map<string, SourceRecord> }
+  >();
+
+  function addDependency(
+    type: DependencyType,
+    keyValue: unknown,
+    source: SourceRecord,
+  ) {
+    if (typeof keyValue !== "string") return;
+    const key = keyValue.trim();
+    if (!key) return;
+
+    const mapKey = type + ":" + key;
+    const group =
+      dependencyGroups.get(mapKey) ??
+      { type, key, members: new Map<string, SourceRecord>() };
+    group.members.set(source.id, source);
+    dependencyGroups.set(mapKey, group);
+  }
+
+  for (const source of sources) {
+    const raw =
+      source.independence_fingerprint &&
+      typeof source.independence_fingerprint === "object" &&
+      !Array.isArray(source.independence_fingerprint)
+        ? (source.independence_fingerprint as Record<string, unknown>)
+        : {};
+
+    const wire =
+      raw.wire_or_release &&
+      typeof raw.wire_or_release === "object" &&
+      !Array.isArray(raw.wire_or_release)
+        ? (raw.wire_or_release as Record<string, unknown>)
+        : {};
+    addDependency("WIRE_OR_RELEASE", wire.key, source);
+
+    for (const [field, type] of [
+      ["datasets", "DATASET"],
+      ["authors", "AUTHOR"],
+      ["institutions", "INSTITUTION"],
+      ["funders", "FUNDER"],
+    ] as const) {
+      const values = Array.isArray(raw[field]) ? raw[field] : [];
+      for (const value of values) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+        addDependency(type, (value as Record<string, unknown>).key, source);
+      }
+    }
+  }
+
+  for (const group of [...dependencyGroups.values()].sort((a, b) =>
+    (a.type + ":" + a.key).localeCompare(b.type + ":" + b.key),
+  )) {
+    const members = [...group.members.values()];
+    if (members.length < 2) continue;
+
+    await insertChain({
+      assessment: "DEPENDENCY_SHARED_" + group.type,
+      members,
+      dependencyType: group.type,
+      dependencyKey: group.key,
+      sharedWireOrRelease: group.type === "WIRE_OR_RELEASE",
+      sharedDataset: group.type === "DATASET",
+      sharedAuthor: group.type === "AUTHOR",
+      sharedInstitution: group.type === "INSTITUTION",
+      sharedFunder: group.type === "FUNDER",
+      note:
+        "Evidence-backed shared dependency signal (" +
+        group.type +
+        "): " +
+        group.key +
+        ". This is a dependence signal, not automatic proof that the evidence is invalid.",
     });
   }
 
