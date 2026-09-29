@@ -481,7 +481,44 @@ export async function processRedTeamReviewResponse(
     throw new Error("Frozen dossier is unavailable.");
   }
 
-  const claims = await getClaims(job.investigation_id);
+  const [claims, reviews, artifactContext] = await Promise.all([
+    getClaims(job.investigation_id),
+    listRedTeamReviews(job.investigation_id),
+    loadFrozenArtifactContext(
+      job.investigation_id,
+      investigation.pre_redteam_snapshot,
+    ),
+  ]);
+  const reviewer = reviews.find(
+    (review) => review.id === job.redteam_review_id,
+  );
+  if (!reviewer) {
+    throw new Error("RedTeam reviewer record is unavailable.");
+  }
+
+  if (!hasWebSearchCall(response)) {
+    throw new Error(
+      "Rival reviewer did not execute the required independent web-search step.",
+    );
+  }
+
+  const codeInterpreterUsage = extractCodeInterpreterUsage(response);
+  const quantitativeForensicsRequired =
+    reviewer.reviewer_role === "DATA_FIGURE_FORENSICS" &&
+    artifactContext.hasTabularArtifacts;
+
+  if (
+    quantitativeForensicsRequired &&
+    (
+      codeInterpreterUsage.completedCallCount < 1 ||
+      codeInterpreterUsage.codePresentCallCount < 1
+    )
+  ) {
+    throw new Error(
+      "Data/Stat/Figure rival did not complete verifiable Python recomputation against the frozen tabular artifact set.",
+    );
+  }
+
   const claimIds = new Set(claims.map((claim) => claim.id));
   const output = parseJson<RedTeamOutput>(extractOutputText(response));
   const claimReviewIds = output.claim_reviews.map((item) => item.claim_id);
@@ -632,6 +669,12 @@ export async function processRedTeamReviewResponse(
     rejectedEvidenceUrls,
     webQueries: queries,
     toolSources,
+    frozenArtifactHashes: artifactContext.hashes,
+    toolVerification: {
+      webSearchUsed: true,
+      quantitativeForensicsRequired,
+      codeInterpreter: codeInterpreterUsage,
+    },
   };
 
   await setRedTeamReviewStatus(
@@ -650,6 +693,9 @@ export async function processRedTeamReviewResponse(
     ).length,
     rejectedEvidenceUrls,
     toolSourceCount: toolSources.length,
+    frozenArtifactCount: artifactContext.artifacts.length,
+    quantitativeForensicsRequired,
+    pythonCompletedCallCount: codeInterpreterUsage.completedCallCount,
   });
 
   return reviewOutput;
