@@ -15,7 +15,9 @@ export async function putArtifactBytes(
   bytes: Uint8Array,
   mimeType: string,
 ) {
-  const blob = new Blob([bytes], { type: mimeType });
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const blob = new Blob([copy.buffer], { type: mimeType });
   await store().set(key, blob);
 }
 
