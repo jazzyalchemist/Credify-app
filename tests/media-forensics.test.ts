@@ -37,3 +37,32 @@ test("structured media forensics survives into persisted assessment rationale", 
 
   assert.match(source, /mediaForensics:\s*output\.media_forensics/);
 });
+
+
+test("media applicability and metadata availability are derived from artifact facts", () => {
+  const content = fs.readFileSync(
+    path.join(process.cwd(), "lib", "artifacts", "content.ts"),
+    "utf8",
+  );
+  const orchestrator = fs.readFileSync(
+    path.join(process.cwd(), "lib", "ai", "page1-orchestrator.ts"),
+    "utf8",
+  );
+
+  assert.match(content, /artifactMediaApplicability/);
+  assert.match(content, /artifactMetadataStatus/);
+  assert.match(orchestrator, /Media-forensics applicability did not match/);
+  assert.match(orchestrator, /claimed metadata availability/);
+  assert.match(orchestrator, /metadataStatusFromArtifact/);
+});
+
+test("reports must preserve native reverse-image tooling limitation", () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), "lib", "ai", "reports.ts"),
+    "utf8",
+  );
+
+  assert.match(source, /Credify's native tooling does not/);
+  assert.match(source, /TEXTUAL_CORROBORATION_ONLY/);
+  assert.match(source, /valid file hash establishes byte identity\/integrity/);
+});
