@@ -588,6 +588,12 @@ export async function buildInvestigationState(
       sourceStats.source_count > 0 && sourceStats.origin_unassessed === 0,
     unresolvedInformationOrigin: sourceStats.origin_unresolved > 0,
     claimSynthesisComplete: Boolean(checkpoints.SYNTHESIS),
+    researchSaturationStatus:
+      investigation.research_saturation_status as
+        | "UNASSESSED"
+        | "CONVERGED"
+        | "PROVISIONAL_STOP"
+        | "CONTINUE_REQUIRED",
     preRedTeamFrozen: Boolean(investigation.pre_redteam_frozen_at),
     redTeamCompleted:
       redteamStats.completed_roles >= PROTOCOL.rivalReviewerCount,
@@ -597,6 +603,40 @@ export async function buildInvestigationState(
     unresolvedMaterialConflict: claimStats.unresolved > 0,
     criticalFailure: claimStats.critical > 0,
   };
+}
+
+export async function setResearchSaturation(
+  investigationId: string,
+  input: {
+    status: "CONVERGED" | "PROVISIONAL_STOP" | "CONTINUE_REQUIRED";
+    payload: unknown;
+  },
+): Promise<void> {
+  const sql = db();
+  const investigation = await getInvestigation(investigationId);
+  if (!investigation) throw new Error("Investigation not found.");
+  if (investigation.pre_redteam_frozen_at) {
+    throw new Error("Research saturation is immutable after dossier freeze.");
+  }
+  if (investigation.current_phase !== "SYNTHESIS") {
+    throw new Error(
+      "Research saturation may only be set during SYNTHESIS.",
+    );
+  }
+
+  await sql`
+    UPDATE investigations
+    SET
+      research_saturation_status = ${input.status},
+      research_saturation = ${sql.json(input.payload as never)},
+      updated_at = NOW()
+    WHERE id = ${investigationId}
+  `;
+
+  await appendAuditEvent(investigationId, "RESEARCH_SATURATION_SET", {
+    status: input.status,
+    payload: input.payload,
+  });
 }
 
 export async function transitionInvestigation(
