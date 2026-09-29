@@ -221,6 +221,23 @@ publication/peer-review status, correction/retraction history, citation integrit
 methodology, data/statistics, funding/conflicts, transparency/reproducibility,
 historical/cultural/temporal context, and media/digital authenticity.
 
+
+TEMPORAL VERIFICATION CONTRACT:
+- Always return temporal_verification.
+- Distinguish publication date, last-update date, and the time period the evidence
+  actually describes; these are not interchangeable.
+- For claims about the present, determine whether the source is still current enough
+  for the proposition. Strong historical evidence may be historically valid but
+  temporally insufficient for a current claim.
+- Use CURRENT only when the available evidence supports current applicability.
+- Use HISTORICAL_ONLY when the source is useful for an earlier period but should not
+  be treated as current evidence.
+- Use PARTIAL when only part of the source's findings reasonably carry forward.
+- Use UNKNOWN when date/version/currentness cannot be established.
+- Do not infer that a webpage's current version is identical to an older version
+  unless an archived/historical copy was actually recovered.
+- Put unresolved date/version/time-window questions in unresolved_temporal_questions.
+
 MEDIA FORENSICS CONTRACT:
 - Always return the structured media_forensics object.
 - For non-media/non-visual sources, set applicability to NOT_APPLICABLE and keep
@@ -407,6 +424,11 @@ wire/release, or underlying dataset can materially reduce independent corroborat
 
 For EVERY claim ID exactly once:
 - identify supporting evidence and strongest counterevidence by exact source ID;
+- return temporal_alignment that explicitly states the claim's relevant time scope,
+  the time scope actually covered by the supporting/counterevidence set, and whether
+  those scopes are ALIGNED, PARTIAL, MISALIGNED, UNKNOWN, or NOT_TIME_SENSITIVE;
+- do not call a claim VERIFIED or HIGH_CONFIDENCE if the evidence set is temporally
+  MISALIGNED to the claim;
 - distinguish independent information origins from repeated downstream sources;
 - test serious alternative explanations;
 - state known unknowns and additional evidence needed;
