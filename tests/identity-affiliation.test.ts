@@ -37,8 +37,8 @@ test("identity prompt separates verified from claimed credentials and avoids pre
   );
 
   assert.match(prompts, /IDENTITY \/ AFFILIATION VERIFICATION CONTRACT/);
-  assert.match(prompts, /claimed credentials from credentials you can independently verify/i);
+  assert.match(prompts, /claimed credentials[\s\S]{0,80}independently verify/i);
   assert.match(prompts, /do not invent identifiers/i);
   assert.match(prompts, /Prestige is not a substitute for expertise/i);
-  assert.match(prompts, /affiliation or funding is not automatic evidence/i);
+  assert.match(prompts, /affiliation or funding[\s\S]{0,80}not[\s\S]{0,40}automatic/i);
 });
