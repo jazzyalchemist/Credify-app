@@ -9,7 +9,6 @@ import {
 import {
   claimAiJobForProcessing,
   completeAiJob,
-  createAiJob,
   failAiJob,
   getAiJob,
   listAiJobs,
@@ -43,6 +42,7 @@ import {
   processSynthesisResponse,
 } from "@/lib/ai/page1-orchestrator";
 import { processReportResponse } from "@/lib/ai/reports";
+import { persistBackgroundJobOrCancel } from "@/lib/ai/job-launch";
 
 type DecompositionOutput = {
   domain: string;
@@ -151,11 +151,11 @@ export async function startDecomposition(investigationId: string) {
   };
 
   const response = await createBackgroundResponse(requestPayload);
-  const job = await createAiJob({
+  const job = await persistBackgroundJobOrCancel({
     investigationId,
     jobType: "DECOMPOSE",
-    externalResponseId: response.id,
-    model: response.model || model,
+    response,
+    fallbackModel: model,
     status: mapExternalStatus(response.status),
     requestPayload: {
       model,
@@ -227,11 +227,11 @@ export async function startDiscovery(investigationId: string) {
   };
 
   const response = await createBackgroundResponse(requestPayload);
-  const job = await createAiJob({
+  const job = await persistBackgroundJobOrCancel({
     investigationId,
     jobType: "DISCOVERY",
-    externalResponseId: response.id,
-    model: response.model || model,
+    response,
+    fallbackModel: model,
     status: mapExternalStatus(response.status),
     requestPayload: {
       model,
