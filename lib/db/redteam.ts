@@ -49,7 +49,7 @@ export async function createRedTeamReview(input: {
   reviewerRole: string;
   modelProvider?: string;
   modelVersion?: string;
-}): Promise<RedTeamReviewRecord> {
+}): Promise<RedTeamReviewRecord | null> {
   const sql = db();
   const id = "RTR-" + randomUUID();
   const [row] = await sql<RedTeamReviewRecord[]>`
@@ -73,9 +73,40 @@ export async function createRedTeamReview(input: {
       'PENDING',
       NOW()
     )
+    ON CONFLICT DO NOTHING
     RETURNING *
   `;
-  return row;
+  return row ?? null;
+}
+
+export async function failOrphanedRedTeamReviews(
+  investigationId: string,
+  olderThanMinutes = 10,
+): Promise<string[]> {
+  const sql = db();
+  const rows = await sql<{ id: string }[]>`
+    UPDATE redteam_reviews AS review
+    SET
+      status = 'FAILED',
+      completed_at = NOW(),
+      output = jsonb_build_object(
+        'error',
+        'Reviewer start lease expired before an active AI job was linked.'
+      )
+    WHERE review.investigation_id = ${investigationId}
+      AND review.status IN ('PENDING', 'IN_PROGRESS')
+      AND COALESCE(review.started_at, NOW()) <
+        NOW() - (${olderThanMinutes}::text || ' minutes')::interval
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ai_jobs job
+        WHERE job.redteam_review_id = review.id
+          AND job.status IN ('QUEUED', 'IN_PROGRESS', 'PROCESSING')
+      )
+    RETURNING review.id
+  `;
+
+  return rows.map((row) => row.id);
 }
 
 export async function listRedTeamReviews(
