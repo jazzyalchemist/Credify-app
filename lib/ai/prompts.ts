@@ -46,6 +46,13 @@ Original submitted material:
 ${investigation.input_material}
 --- END MATERIAL ---
 
+If the submitted material contains URL(s), document references, or claims whose
+meaning cannot be established from the pasted material alone, use web search to
+recover enough original/contextual material to understand what is actually being
+asserted before decomposition. Treat anything retrieved here as INTAKE CONTEXT only:
+it is not admitted evidence, not verified, and must be independently rediscovered
+and audited in later protocol phases.
+
 Decompose the material into discrete, testable propositions that materially affect
 the credibility assessment. Do not inflate the claim count with trivial restatements.
 Classify each claim, indicate whether primary evidence is required, identify the
