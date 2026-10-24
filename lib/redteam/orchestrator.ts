@@ -442,6 +442,13 @@ export async function startRedTeam(investigationId: string) {
           protocolCommit: investigation.protocol_commit,
           dossierSha256: investigation.pre_redteam_snapshot_hash,
           role: role.key,
+          // Persist the exact reviewer incentive lens used in the system prompt.
+          // Distinct reviewer roles do not imply independent model providers.
+          incentiveProfile: {
+            rewardTarget: role.rewardTarget,
+            falsePositivePenalty: role.falsePositivePenalty,
+            selfFalsificationPriority: role.selfFalsificationPriority,
+          },
           frozenArtifactHashes: artifactContext.hashes,
           quantitativeForensicsRequired:
             role.key === "DATA_FIGURE_FORENSICS" &&
